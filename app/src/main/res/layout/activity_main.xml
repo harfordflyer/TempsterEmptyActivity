@@ -9,7 +9,14 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.example.dhammond1.tempsteremptyactivity.MainActivity">
 
-    <LinearLayout
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+         <LinearLayout
         android:id="@+id/linearSession"
         android:orientation="horizontal"
         android:layout_width="match_parent"
@@ -26,7 +33,7 @@
 
     </LinearLayout>
 
-    <LinearLayout
+         <LinearLayout
         android:id="@+id/linear1"
         android:layout_below="@+id/linearSession"
         android:orientation="horizontal"
@@ -65,7 +72,7 @@
 
     </LinearLayout>
 
-    <LinearLayout
+         <LinearLayout
         android:id="@+id/linearHeading"
         android:orientation="horizontal"
         android:layout_below="@id/linear1"
@@ -91,7 +98,7 @@
 
     </LinearLayout>
 
-    <LinearLayout
+        <LinearLayout
         android:id="@+id/linearPit"
 
         android:layout_below="@+id/linearHeading"
@@ -147,7 +154,7 @@
 
     </LinearLayout>
 
-    <LinearLayout
+        <LinearLayout
         android:id="@+id/linearMeat"
         android:orientation="horizontal"
         android:layout_below="@+id/linearPit"
@@ -180,7 +187,7 @@
 
     </LinearLayout>
 
-    <LinearLayout
+        <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/activitybutton"
@@ -209,5 +216,7 @@
 
 
     </LinearLayout>
+    </RelativeLayout>
+    </ScrollView>
 
 </RelativeLayout>

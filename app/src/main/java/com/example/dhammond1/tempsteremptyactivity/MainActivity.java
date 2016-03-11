@@ -8,6 +8,7 @@ import android.os.SystemClock;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.Chronometer;
 import android.widget.EditText;
@@ -54,6 +55,11 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    public void StopService()
+    {
+        databaseReadTask.shutdown();
+    }
+
     public static Handler runnableCallback = new Handler()
     {
         public void handleMessage(Message msg)
@@ -80,7 +86,7 @@ public class MainActivity extends AppCompatActivity {
         tv_MeatText = (TextView)findViewById(R.id.tx_tempMeat);
         ed_targetTemp = (EditText)findViewById(R.id.ed_targetPit);
         chrono = (Chronometer)findViewById(R.id.chronometer);
-
+        getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         SharedPreferences prefs = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE);
         String restoredText = prefs.getString("targetPitTemp", null);
         if(restoredText == null)
@@ -105,7 +111,8 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v)
             {
-
+                Intent intent = new Intent(MainActivity.this, GraphActivity.class);
+                MainActivity.this.startActivity(intent);
             }
         });
 
@@ -147,6 +154,8 @@ public class MainActivity extends AppCompatActivity {
                 chrono.stop();
 
                 mLastStopTime = SystemClock.elapsedRealtime();
+                StopService();
+                //To Do add StopService
             }
         });
     }
