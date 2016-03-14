@@ -214,28 +214,11 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         entry.setTime(cursor.getString(2));
         entry.setPitTemp(cursor.getString(3));
         entry.setMeatTemp(cursor.getString(4));
+        cursor.close();
         return entry;
     }
 
-    public ConfigEntity getLastConfigEntry()
-    {
-        SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.rawQuery("SELECT * FROM " + TABLE_CONFIG, null);
-        cursor.moveToLast();
-        ConfigEntity entry = new ConfigEntity();
-        entry.setID(Integer.parseInt(cursor.getString(0)));
-        entry.setDate(cursor.getString(1));
-        entry.setTargetPitTemp(cursor.getString(2));
-        entry.setMinPitTemp(cursor.getString(3));
-        entry.setMaxPitTemp(cursor.getString(4));
-        entry.setFan(cursor.getString(5));
-        entry.setKP(cursor.getString(6));
-        entry.setKI(cursor.getString(7));
-        entry.setKD(cursor.getString(8));
 
-        entry.setSampleTime(cursor.getString(9));
-        return entry;
-    }
 
     public List<TemperatureEntry> getEntriesByDate(String date)
     {
@@ -272,41 +255,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         return listEntry;
     }
 
-    public ConfigEntity GetConfigEntryByDate(String date)
-    {
-        List<ConfigEntity> listEntry = new ArrayList<ConfigEntity>();
-        String selectQuery = "SELECT  * FROM " + TABLE_ENTRIES  + " WHERE " + COLUMN_DATE + " = \"" + date + "\"";
 
-        SQLiteDatabase db = this.getWritableDatabase();
-        //Cursor cursor = db.rawQuery(selectQuery, new String[]{date});
-        Cursor cursor = null;
-        try {
-            cursor = db.rawQuery(selectQuery, null);
-        }
-        catch(Exception ex)
-        {
-            Log.d("GetEntriesError", ex.getMessage());
-        }
-        if(cursor.moveToFirst())
-        {
-            do{
-                ConfigEntity entry = new ConfigEntity();
-                entry.setID(Integer.parseInt(cursor.getString(0)));
-                entry.setDate(cursor.getString(1));
-                entry.setTargetPitTemp(cursor.getString(2));
-                entry.setMinPitTemp(cursor.getString(3));
-                entry.setMaxPitTemp(cursor.getString(4));
-                entry.setFan(cursor.getString(5));
-                entry.setKP(cursor.getString(6));
-                entry.setKI(cursor.getString(7));
-                entry.setKD(cursor.getString(8));
-
-            }while(cursor.moveToNext());
-        }
-        //get the last entry if there are multiple entries
-        ConfigEntity c = listEntry.get(listEntry.size() - 1);
-        return c;
-    }
 
     public final static class GetDateTime
     {

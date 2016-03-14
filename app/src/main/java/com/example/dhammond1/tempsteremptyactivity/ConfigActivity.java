@@ -1,12 +1,14 @@
 package com.example.dhammond1.tempsteremptyactivity;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.TextView;
 
@@ -26,8 +28,10 @@ public class ConfigActivity extends AppCompatActivity {
     private EditText ed_fanSpeed;
     private EditText ed_sampleTime;
 
-    private static final String CONFIG_NAME = "AppConfig";
+    private CheckBox chk_saveGraph;
 
+    private static final String CONFIG_NAME = "AppConfig";
+    private boolean b_saveGraphData;
 
 
     @Override
@@ -36,16 +40,6 @@ public class ConfigActivity extends AppCompatActivity {
         setContentView(R.layout.activity_config);
 
         s_date = DatabaseHandler.GetDateTime.GetDate(Calendar.getInstance());
-        final String s_targetPit;
-        final String s_minTemp;
-        final String s_maxTemp;
-        final String s_currentKp;
-        final String s_currentKi;
-        final String s_currentKd;
-        final String s_fan;
-        final String s_sampleTime;
-
-
 
         ed_minTemp = (EditText)findViewById(R.id.ed_minPit);
         ed_maxTemp = (EditText)findViewById(R.id.ed_maxPit);
@@ -54,20 +48,31 @@ public class ConfigActivity extends AppCompatActivity {
         ed_currentKi = (EditText)findViewById(R.id.ed_Ki);
         ed_currentKd = (EditText)findViewById(R.id.ed_Kd);
         ed_sampleTime = (EditText)findViewById(R.id.ed_SampleTime);
-        Button saveConfig = (Button)findViewById(R.id.btn_saveConfig);
+        chk_saveGraph = (CheckBox)findViewById(R.id.chk_saveGraph);
+
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         RestoreConfigurations();
 
-
-            saveConfig.setOnClickListener(new View.OnClickListener() {
+        chk_saveGraph.setOnClickListener(new View.OnClickListener(){
             @Override
-            public void onClick(View v) {
-
-                SaveConfigurations();
+            public void onClick(View v){
+                b_saveGraphData = chk_saveGraph.isChecked();
             }
         });
 
     }
+
+    @Override
+    public void onBackPressed(){
+        SaveConfigurations();
+        Intent intent = new Intent();
+        //I don't have to do this as the data is saved in the SharedPreferences
+        //But I'm leaving it in for example purposes
+        intent.putExtra("saveGraphData", b_saveGraphData);
+        setResult(1, intent);
+        finish();
+    };
+
 
     public void RestoreConfigurations()
     {
@@ -94,6 +99,10 @@ public class ConfigActivity extends AppCompatActivity {
         restoredText = config.getString("sampleTime", null);
         SetTextBox(ed_sampleTime, restoredText, "30");
 
+        Boolean restoredBool = config.getBoolean("saveGraph", true);
+        if(!restoredBool) {
+            chk_saveGraph.toggle();
+        }
 
     }
 
@@ -120,7 +129,9 @@ public class ConfigActivity extends AppCompatActivity {
         editor.putString("ki", ed_currentKi.getText().toString());
         editor.putString("kd", ed_currentKd.getText().toString());
         editor.putString("sampleTime", ed_sampleTime.getText().toString());
+        editor.putBoolean("saveGraph", chk_saveGraph.isChecked());
         editor.apply();
     }
+
 
 }

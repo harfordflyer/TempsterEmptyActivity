@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">TempsterEmptyActivity</string>
+    <string name="app_name">Tempster</string>
+    <string name="chk_saveData">Save Data for Graph</string>
 </resources>

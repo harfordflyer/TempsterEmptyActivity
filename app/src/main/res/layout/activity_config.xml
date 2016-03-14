@@ -274,22 +274,33 @@
 
     </LinearLayout>
 
+    <LinearLayout
+        android:id="@+id/saveDataRow"
+        android:orientation="horizontal"
+        android:layout_below="@id/sampleTimeRow"
+        android:layout_width="match_parent"
+        android:layout_height="43dp" >
+
+        <CheckBox
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/chk_saveGraph"
+            android:text="@string/chk_saveData"
+            android:textSize="25dp"
+            android:checked="true"
+            android:onClick="SaveDataClick"/>
+
+    </LinearLayout>
+
 
     <LinearLayout
         android:id="@+id/linearSaveConfig"
         android:orientation="horizontal"
-        android:layout_below="@id/sampleTimeRow"
+        android:layout_below="@id/saveDataRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
 
-        <Button
-            android:id="@+id/btn_saveConfig"
-            android:onClick="On_btn_saveConfig"
-            android:layout_weight="0.0"
-            android:layout_gravity="bottom"
-            android:text="Save"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content" />
+
     </LinearLayout>
     </RelativeLayout>
 </ScrollView>

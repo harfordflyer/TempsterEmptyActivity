@@ -7,6 +7,7 @@ import android.os.Message;
 import android.os.SystemClock;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -15,6 +16,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.content.Context;
 
+import java.util.Calendar;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -31,6 +33,8 @@ public class MainActivity extends AppCompatActivity {
     Chronometer chrono;
     long mLastStopTime = 0;
     private static final String CONFIG_NAME = "AppConfig";
+    private boolean saveGraphData;
+    public static Calendar calendar = Calendar.getInstance();
 
     public void StartService()
     {
@@ -38,14 +42,30 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 DatabaseHandler DBHandler = dbHandler.getInstance(getApplicationContext());
-                TemperatureEntry sampleEntry = new TemperatureEntry(null, null, null, null);
 
-                DataService.ReadTemperatures(sampleEntry, DBHandler);
 
-                TemperatureEntry entry = DBHandler.getLastEntry();
+                //DataService.ReadTemperatures(sampleEntry, DBHandler);
+                DataService.ReadTemperatures();
+                int meatTemp = DataService.meatTemp;
+                int pitTemp = DataService.pitTemp;
+                //TemperatureEntry sampleEntry = new TemperatureEntry(null, null, null, null);
+                String date = DatabaseHandler.GetDateTime.GetDate(calendar);
+                String time = DatabaseHandler.GetDateTime.GetTime(calendar);
+                String pit = Integer.toString(pitTemp);
+                String meat = Integer.toString(meatTemp);
+                TemperatureEntry sampleEntry = new TemperatureEntry(date,time,pit,meat);
+                Log.d("pit temp: ", sampleEntry.getPitTemp());
+                Log.d("meat temp: ", sampleEntry.getMeatTemp());
+                Log.d("date: ", DatabaseHandler.GetDateTime.GetDate(calendar));
+                Log.d("time: ", DatabaseHandler.GetDateTime.GetTime(calendar));
+
+                if(saveGraphData) {
+                    addDataBaseEntry(sampleEntry, DatabaseHandler.getInstance(getApplicationContext()));
+                }
+
 
                 Bundle bundle = new Bundle();
-                bundle.putSerializable("entry", entry);
+                bundle.putSerializable("entry", sampleEntry);
                 Message message = new Message();
                 message.setData(bundle);
                 runnableCallback.sendMessage(message);
@@ -54,6 +74,12 @@ public class MainActivity extends AppCompatActivity {
         }, 10000, 10000, TimeUnit.MILLISECONDS);
 
     }
+
+    public static void addDataBaseEntry(TemperatureEntry entry, DatabaseHandler handler)
+    {
+        handler.addEntry(entry);
+    }
+
 
     public void StopService()
     {
@@ -76,7 +102,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        saveGraphData = true;
         Button config = (Button)findViewById(R.id.configactivity);
         Button graph = (Button)findViewById(R.id.chartactivity);
         Button start = (Button)findViewById(R.id.chronStart);
@@ -103,7 +129,8 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
 
                 Intent intent = new Intent(MainActivity.this, ConfigActivity.class);
-                MainActivity.this.startActivity(intent);
+                startActivityForResult(intent,1 );
+                //MainActivity.this.startActivity(intent);
             }
         });
 
@@ -147,7 +174,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        stop.setOnClickListener(new View.OnClickListener(){
+        stop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
@@ -158,5 +185,17 @@ public class MainActivity extends AppCompatActivity {
                 //To Do add StopService
             }
         });
+
+
+    }
+
+    public void onActivityResult(int requestCode, int resultCode, Intent data){
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1) {
+            if(resultCode == 1){
+                saveGraphData = data.getBooleanExtra("saveGraphData", true);
+
+            }
+        }
     }
 }
