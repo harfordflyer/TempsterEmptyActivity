@@ -22,8 +22,16 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import ioio.lib.api.DigitalOutput;
+import ioio.lib.api.IOIO;
+import ioio.lib.api.IOIO.VersionType;
+import ioio.lib.api.exception.ConnectionLostException;
+import ioio.lib.util.BaseIOIOLooper;
+import ioio.lib.util.IOIOLooper;
+
 public class MainActivity extends AppCompatActivity {
 
+    boolean isServiceRunning;
     public static TextView tv_PitText;
     public static TextView tv_MeatText;
     public static EditText ed_targetTemp;
@@ -103,6 +111,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         saveGraphData = true;
+        isServiceRunning = false;
         Button config = (Button)findViewById(R.id.configactivity);
         Button graph = (Button)findViewById(R.id.chartactivity);
         Button start = (Button)findViewById(R.id.chronStart);
@@ -157,20 +166,21 @@ public class MainActivity extends AppCompatActivity {
         start.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (mLastStopTime == 0) {
-                    chrono.setBase(SystemClock.elapsedRealtime());
-                } else {
-                    long intervalOnPause = (SystemClock.elapsedRealtime() - mLastStopTime);
-                    chrono.setBase(chrono.getBase() + intervalOnPause);
+                if(!isServiceRunning) {
+                    if (mLastStopTime == 0) {
+                        chrono.setBase(SystemClock.elapsedRealtime());
+                    } else {
+                        long intervalOnPause = (SystemClock.elapsedRealtime() - mLastStopTime);
+                        chrono.setBase(chrono.getBase() + intervalOnPause);
+                    }
+                    chrono.start();
+                    //start sampling data
+                    Intent i = new Intent(MainActivity.this, DataService.class);
+                    i.putExtra("temps", new String[]{"1000", "2000"});
+
+                    databaseReadTask = Executors.newScheduledThreadPool(5);
+                    StartService();
                 }
-                chrono.start();
-                //start sampling data
-                Intent i = new Intent(MainActivity.this, DataService.class);
-                i.putExtra("temps", new String[]{"1000", "2000"});
-
-                databaseReadTask = Executors.newScheduledThreadPool(5);
-                StartService();
-
             }
         });
 
