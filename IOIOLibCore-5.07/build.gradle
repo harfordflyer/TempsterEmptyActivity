@@ -1,0 +1,2 @@
+configurations.create("default")
+artifacts.add("default", file('IOIOLibCore-5.07.jar'))

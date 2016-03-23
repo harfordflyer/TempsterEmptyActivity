@@ -3,6 +3,11 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/GraphView-4.0.1/GraphView-4.0.1.iml" filepath="$PROJECT_DIR$/GraphView-4.0.1/GraphView-4.0.1.iml" />
+      <module fileurl="file://$PROJECT_DIR$/IOIOLibAndroid-release/IOIOLibAndroid-release.iml" filepath="$PROJECT_DIR$/IOIOLibAndroid-release/IOIOLibAndroid-release.iml" />
+      <module fileurl="file://$PROJECT_DIR$/IOIOLibAndroidAccessory-release/IOIOLibAndroidAccessory-release.iml" filepath="$PROJECT_DIR$/IOIOLibAndroidAccessory-release/IOIOLibAndroidAccessory-release.iml" />
+      <module fileurl="file://$PROJECT_DIR$/IOIOLibAndroidBluetooth-release/IOIOLibAndroidBluetooth-release.iml" filepath="$PROJECT_DIR$/IOIOLibAndroidBluetooth-release/IOIOLibAndroidBluetooth-release.iml" />
+      <module fileurl="file://$PROJECT_DIR$/IOIOLibAndroidDevice-release/IOIOLibAndroidDevice-release.iml" filepath="$PROJECT_DIR$/IOIOLibAndroidDevice-release/IOIOLibAndroidDevice-release.iml" />
+      <module fileurl="file://$PROJECT_DIR$/IOIOLibCore-5.07/IOIOLibCore-5.07.iml" filepath="$PROJECT_DIR$/IOIOLibCore-5.07/IOIOLibCore-5.07.iml" />
       <module fileurl="file://$PROJECT_DIR$/TempsterEmptyActivity.iml" filepath="$PROJECT_DIR$/TempsterEmptyActivity.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>

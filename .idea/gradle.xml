@@ -5,12 +5,17 @@
       <GradleProjectSettings>
         <option name="distributionType" value="LOCAL" />
         <option name="externalProjectPath" value="$PROJECT_DIR$" />
-        <option name="gradleHome" value="C:\Program Files\Android\Android Studio\gradle\gradle-2.8" />
+        <option name="gradleHome" value="$APPLICATION_HOME_DIR$/gradle/gradle-2.8" />
         <option name="gradleJvm" value="1.8" />
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
             <option value="$PROJECT_DIR$/GraphView-4.0.1" />
+            <option value="$PROJECT_DIR$/IOIOLibAndroid-release" />
+            <option value="$PROJECT_DIR$/IOIOLibAndroidAccessory-release" />
+            <option value="$PROJECT_DIR$/IOIOLibAndroidBluetooth-release" />
+            <option value="$PROJECT_DIR$/IOIOLibAndroidDevice-release" />
+            <option value="$PROJECT_DIR$/IOIOLibCore-5.07" />
             <option value="$PROJECT_DIR$/app" />
           </set>
         </option>

@@ -1,1 +1,1 @@
-include ':app', ':GraphView-4.0.1'
+include ':app', ':GraphView-4.0.1', ':IOIOLibAndroid-release', ':IOIOLibAndroidAccessory-release', ':IOIOLibAndroidBluetooth-release', ':IOIOLibAndroidDevice-release', ':IOIOLibCore-5.07'

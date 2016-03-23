@@ -22,12 +22,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import ioio.lib.api.DigitalOutput;
-import ioio.lib.api.IOIO;
-import ioio.lib.api.IOIO.VersionType;
-import ioio.lib.api.exception.ConnectionLostException;
-import ioio.lib.util.BaseIOIOLooper;
-import ioio.lib.util.IOIOLooper;
+
 
 public class MainActivity extends AppCompatActivity {
 
@@ -80,6 +75,11 @@ public class MainActivity extends AppCompatActivity {
 
             }
         }, 10000, 10000, TimeUnit.MILLISECONDS);
+
+    }
+
+    public static void StartIOIOService()
+    {
 
     }
 
@@ -138,7 +138,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
 
                 Intent intent = new Intent(MainActivity.this, ConfigActivity.class);
-                startActivityForResult(intent,1 );
+                startActivityForResult(intent, 1);
                 //MainActivity.this.startActivity(intent);
             }
         });
@@ -166,7 +166,7 @@ public class MainActivity extends AppCompatActivity {
         start.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if(!isServiceRunning) {
+                if (!isServiceRunning) {
                     if (mLastStopTime == 0) {
                         chrono.setBase(SystemClock.elapsedRealtime());
                     } else {
@@ -196,7 +196,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-
+        startService(new Intent(MainActivity.this, IOIOLooperService.class));
     }
 
     public void onActivityResult(int requestCode, int resultCode, Intent data){
