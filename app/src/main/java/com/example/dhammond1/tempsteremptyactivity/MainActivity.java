@@ -1,10 +1,13 @@
 package com.example.dhammond1.tempsteremptyactivity;
 
+import android.content.BroadcastReceiver;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -124,6 +127,9 @@ public class MainActivity extends AppCompatActivity {
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         SharedPreferences prefs = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE);
         String restoredText = prefs.getString("targetPitTemp", null);
+
+
+
         if(restoredText == null)
         {
             ed_targetTemp.setText("250", TextView.BufferType.EDITABLE);
@@ -194,10 +200,30 @@ public class MainActivity extends AppCompatActivity {
                 StopService();
                 //To Do add StopService
             }
+
+
         });
 
-        startService(new Intent(MainActivity.this, IOIOLooperService.class));
+        LocalBroadcastManager.getInstance(this).registerReceiver(receiver,
+                new IntentFilter("results"));
+
+        //IOIO service
+        Intent intent = new Intent(MainActivity.this, IOIOLooperService.class);
+        String sample = prefs.getString("sampleTime",null);
+        intent.putExtra("sampleTime", "30" );
+        startService(intent);
+        //startService(new Intent(MainActivity.this, IOIOLooperService.class));
+
     }
+
+    //need to put in handlers for onDestroy and onResume
+    private BroadcastReceiver receiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            float[] values = intent.getFloatArrayExtra("temps");
+
+        }
+    };
 
     public void onActivityResult(int requestCode, int resultCode, Intent data){
         super.onActivityResult(requestCode, resultCode, data);

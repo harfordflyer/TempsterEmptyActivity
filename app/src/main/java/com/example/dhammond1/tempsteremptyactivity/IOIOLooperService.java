@@ -3,9 +3,12 @@ package com.example.dhammond1.tempsteremptyactivity;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.Bundle;
 import android.os.IBinder;
-
+import android.support.v4.content.LocalBroadcastManager;
 
 
 import ioio.lib.api.DigitalOutput;
@@ -16,15 +19,81 @@ import ioio.lib.util.IOIOLooper;
 
 import ioio.lib.util.android.IOIOService;
 
-
-
+import java.util.Timer;
+import java.util.TimerTask;
 
 
 public class IOIOLooperService extends IOIOService {
+    private static final String CONFIG_NAME = "AppConfig";
+   // SharedPreferences config = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE);
+   // String restoredText = config.getString("sampleTime", null);
+    int sampleTime;
+    int initialWait = 10000;
+
+    public static float pitVoltage = 0;
+    public static float meatVoltage = 0;
+
     @Override
     protected IOIOLooper createIOIOLooper() {
         return new BaseIOIOLooper() {
+
+
             private DigitalOutput led_;
+
+            //Initialize Timer Stuff
+            Timer t = new Timer();
+            TimerTask controlLoop = new TimerTask(){
+
+                @Override
+                public void run() {
+                    try {
+                        controlLoop();
+                    } catch (ConnectionLostException e) {
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+
+                }
+
+            };
+
+            //IOIO Setup Method
+            @Override
+            protected void setup() throws ConnectionLostException,
+                    InterruptedException {
+                //Setup IOIO Pins
+                led_ = ioio_.openDigitalOutput(IOIO.LED_PIN);
+
+                //Increase thread priority
+                Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+
+                //Set timer to execute 'controlLoop' after a xxms delay every xxms
+                t.schedule(controlLoop, initialWait, sampleTime);
+            }
+
+            //Control Loop Method
+            protected synchronized void controlLoop() throws ConnectionLostException,
+                    InterruptedException {
+                led_.write(false);
+                Thread.sleep(2000);
+                led_.write(true);
+
+                pitVoltage = pitVoltage + 1;
+                meatVoltage = meatVoltage + 2;
+                float[] values = new float[2];
+                values[0] = pitVoltage;
+                values[1] = meatVoltage;
+
+                Intent intent = new Intent("results");
+                intent.putExtra("temps", values);
+                sendBroadcast(intent);
+                LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
+
+            }
+
+
+            /*private DigitalOutput led_;
 
             @Override
             protected void setup() throws ConnectionLostException,
@@ -39,17 +108,24 @@ public class IOIOLooperService extends IOIOService {
                 Thread.sleep(500);
                 led_.write(true);
                 Thread.sleep(500);
-            }
+            }*/
         };
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        String sample = intent.getStringExtra("sampleTime");
+        sampleTime = Integer.parseInt(sample) * 1000;
+
         super.onStartCommand(intent, flags, startId);
+
+
+
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (intent != null && intent.getAction() != null
                 && intent.getAction().equals("stop")) {
             // User clicked the notification. Need to stop the service.
+
             nm.cancel(0);
             stopSelf();
         } else {
