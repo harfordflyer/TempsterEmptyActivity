@@ -40,9 +40,11 @@ public class MainActivity extends AppCompatActivity {
     long mLastStopTime = 0;
     private static final String CONFIG_NAME = "AppConfig";
     private boolean saveGraphData;
-    public static Calendar calendar = Calendar.getInstance();
+    public static Calendar calendar;
+    private SharedPreferences prefs;
+    private boolean initialStart = true;
 
-    public void StartService()
+   /* public void StartService()
     {
         scheduleFuture = databaseReadTask.scheduleAtFixedRate(new Runnable() {
             @Override
@@ -79,12 +81,12 @@ public class MainActivity extends AppCompatActivity {
             }
         }, 10000, 10000, TimeUnit.MILLISECONDS);
 
-    }
+    }*/
 
-    public static void StartIOIOService()
+   /* public static void StartIOIOService()
     {
 
-    }
+    }*/
 
     public static void addDataBaseEntry(TemperatureEntry entry, DatabaseHandler handler)
     {
@@ -94,10 +96,10 @@ public class MainActivity extends AppCompatActivity {
 
     public void StopService()
     {
-        databaseReadTask.shutdown();
+
     }
 
-    public static Handler runnableCallback = new Handler()
+   /* public static Handler runnableCallback = new Handler()
     {
         public void handleMessage(Message msg)
         {
@@ -107,7 +109,28 @@ public class MainActivity extends AppCompatActivity {
 
             tv_MeatText.setText(entry.getMeatTemp());
         }
-    };
+    };*/
+
+    @Override
+    protected void onResume()
+    {
+        super.onResume();
+
+        if(!initialStart)
+        {
+            long time = SystemClock.elapsedRealtime();
+            long intervalOnPause = (SystemClock.elapsedRealtime() +  mLastStopTime);
+            chrono.setBase(SystemClock.elapsedRealtime() + mLastStopTime);
+
+            chrono.start();
+        }
+        else
+        {
+            initialStart = false;
+        }
+
+
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -125,11 +148,13 @@ public class MainActivity extends AppCompatActivity {
         ed_targetTemp = (EditText)findViewById(R.id.ed_targetPit);
         chrono = (Chronometer)findViewById(R.id.chronometer);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
-        SharedPreferences prefs = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE);
+
+        //do i need to do something here on first start... I will need to set all defaults on first start
+        prefs = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE);
         String restoredText = prefs.getString("targetPitTemp", null);
 
-
-
+        //set the configs here... should do this in separate function to set
+        //either defaults or changed values...TODO
         if(restoredText == null)
         {
             ed_targetTemp.setText("250", TextView.BufferType.EDITABLE);
@@ -145,7 +170,10 @@ public class MainActivity extends AppCompatActivity {
 
                 Intent intent = new Intent(MainActivity.this, ConfigActivity.class);
                 startActivityForResult(intent, 1);
-                //MainActivity.this.startActivity(intent);
+                mLastStopTime = chrono.getBase() - SystemClock.elapsedRealtime();
+
+                chrono.stop();
+
             }
         });
 
@@ -155,6 +183,9 @@ public class MainActivity extends AppCompatActivity {
             {
                 Intent intent = new Intent(MainActivity.this, GraphActivity.class);
                 MainActivity.this.startActivity(intent);
+
+                mLastStopTime = chrono.getBase() - SystemClock.elapsedRealtime();
+                chrono.stop();
             }
         });
 
@@ -179,13 +210,9 @@ public class MainActivity extends AppCompatActivity {
                         long intervalOnPause = (SystemClock.elapsedRealtime() - mLastStopTime);
                         chrono.setBase(chrono.getBase() + intervalOnPause);
                     }
+                    StartIOIOServiceLoop(prefs);
                     chrono.start();
-                    //start sampling data
-                    Intent i = new Intent(MainActivity.this, DataService.class);
-                    i.putExtra("temps", new String[]{"1000", "2000"});
 
-                    databaseReadTask = Executors.newScheduledThreadPool(5);
-                    StartService();
                 }
             }
         });
@@ -197,7 +224,7 @@ public class MainActivity extends AppCompatActivity {
                 chrono.stop();
 
                 mLastStopTime = SystemClock.elapsedRealtime();
-                StopService();
+                StopIOIOService();
                 //To Do add StopService
             }
 
@@ -207,12 +234,22 @@ public class MainActivity extends AppCompatActivity {
         LocalBroadcastManager.getInstance(this).registerReceiver(receiver,
                 new IntentFilter("results"));
 
+
+    }
+
+    private  void StartIOIOServiceLoop(SharedPreferences prefs)
+    {
         //IOIO service
         Intent intent = new Intent(MainActivity.this, IOIOLooperService.class);
         String sample = prefs.getString("sampleTime",null);
         intent.putExtra("sampleTime", "30" );
         startService(intent);
-        //startService(new Intent(MainActivity.this, IOIOLooperService.class));
+    }
+
+    private  void StopIOIOService()
+    {
+        Intent intent = new Intent(MainActivity.this, IOIOLooperService.class);
+        stopService(intent);
 
     }
 
@@ -220,11 +257,29 @@ public class MainActivity extends AppCompatActivity {
     private BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            float[] values = intent.getFloatArrayExtra("temps");
+            int[] values = intent.getIntArrayExtra("temps");
+            tv_MeatText.setText(String.valueOf(values[0]));
+            tv_PitText.setText(String.valueOf(values[1]));
+            calendar = Calendar.getInstance();
+            DatabaseHandler DBHandler = dbHandler.getInstance(getApplicationContext());
+            String date = DatabaseHandler.GetDateTime.GetDate(calendar);
+            String time = DatabaseHandler.GetDateTime.GetTime(calendar);
+            String pit = Integer.toString(values[0]);
+            String meat = Integer.toString(values[1]);
+            TemperatureEntry sampleEntry = new TemperatureEntry(date,time,pit,meat);
+            Log.d("pit temp: ", sampleEntry.getPitTemp());
+            Log.d("meat temp: ", sampleEntry.getMeatTemp());
+            Log.d("date: ", DatabaseHandler.GetDateTime.GetDate(calendar));
+            Log.d("time: ", DatabaseHandler.GetDateTime.GetTime(calendar));
+
+            if(saveGraphData) {
+                addDataBaseEntry(sampleEntry, DatabaseHandler.getInstance(getApplicationContext()));
+            }
 
         }
     };
 
+    //gets the value of save graph from the config activiyt
     public void onActivityResult(int requestCode, int resultCode, Intent data){
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 1) {

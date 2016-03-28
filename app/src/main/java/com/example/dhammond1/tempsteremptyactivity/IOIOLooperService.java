@@ -9,8 +9,10 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.v4.content.LocalBroadcastManager;
+import android.util.Log;
 
 
+import ioio.lib.api.AnalogInput;
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.IOIO;
 import ioio.lib.api.exception.ConnectionLostException;
@@ -28,10 +30,13 @@ public class IOIOLooperService extends IOIOService {
    // SharedPreferences config = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE);
    // String restoredText = config.getString("sampleTime", null);
     int sampleTime;
-    int initialWait = 10000;
+    int initialWait = 15000;
+    int pin45 = 45;
+    int pin46 = 46;
 
     public static float pitVoltage = 0;
     public static float meatVoltage = 0;
+
 
     @Override
     protected IOIOLooper createIOIOLooper() {
@@ -39,6 +44,9 @@ public class IOIOLooperService extends IOIOService {
 
 
             private DigitalOutput led_;
+            private AnalogInput pitInput;
+            private AnalogInput meatInput;
+
 
             //Initialize Timer Stuff
             Timer t = new Timer();
@@ -65,6 +73,7 @@ public class IOIOLooperService extends IOIOService {
                 //Setup IOIO Pins
                 led_ = ioio_.openDigitalOutput(IOIO.LED_PIN);
 
+
                 //Increase thread priority
                 Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
 
@@ -72,19 +81,69 @@ public class IOIOLooperService extends IOIOService {
                 t.schedule(controlLoop, initialWait, sampleTime);
             }
 
+
+
             //Control Loop Method
             protected synchronized void controlLoop() throws ConnectionLostException,
                     InterruptedException {
-                led_.write(false);
-                Thread.sleep(2000);
-                led_.write(true);
 
-                pitVoltage = pitVoltage + 1;
-                meatVoltage = meatVoltage + 2;
-                float[] values = new float[2];
-                values[0] = pitVoltage;
-                values[1] = meatVoltage;
+                //flash the IOIO before taking a temp
+                for(int i = 0; i < 3; i++) {
+                    led_.write(true);
+                    Thread.sleep(750);
+                    led_.write(false);
+                }
 
+
+                double totalVolts = 0;
+                int samples = 0;
+                double averageVolts = 0;
+                int overflowCount = 0;
+
+                //measure all pit voltages
+                pitInput = ioio_.openAnalogInput(pin45);
+                pitInput.setBuffer(256);
+
+                Log.d("# pit sample voltages ", String.valueOf(samples));
+
+                for (int i = 0; i < 256; i++) {
+                    totalVolts += pitInput.getVoltageBuffered();
+                }
+
+                averageVolts = totalVolts / (double)256;
+                pitVoltage = (float)averageVolts;
+                Log.d("avg voltage on pit ", String.valueOf(pitVoltage));
+                pitInput.close();
+
+                //measure all meat voltages
+                totalVolts = 0;
+                meatInput = ioio_.openAnalogInput(pin46);
+                meatInput.setBuffer(256);
+                samples = meatInput.available();
+                Log.d("# meat sample voltages ", String.valueOf(samples));
+
+                for (int i = 0; i < 256; i++) {
+                    totalVolts += meatInput.getVoltageBuffered();
+                }
+
+
+                averageVolts = totalVolts / (double)256;
+                meatVoltage = (float)averageVolts;
+                Log.d("avg voltage on meat ", String.valueOf(meatVoltage));
+                meatInput.close();
+
+
+
+                //convert the voltages to real temps
+                int[] values = new int[2];
+                float meatTemp = computeTemperature(meatVoltage);
+                values[0] = ConvetKelvin2Farenheight(meatTemp);
+
+                float pitTemp = computeTemperature(pitVoltage);
+                values[1] = ConvetKelvin2Farenheight(pitTemp);
+
+
+                //send the results back to the main acitivity
                 Intent intent = new Intent("results");
                 intent.putExtra("temps", values);
                 sendBroadcast(intent);
@@ -92,24 +151,59 @@ public class IOIOLooperService extends IOIOService {
 
             }
 
-
-            /*private DigitalOutput led_;
-
-            @Override
-            protected void setup() throws ConnectionLostException,
-                    InterruptedException {
-                led_ = ioio_.openDigitalOutput(IOIO.LED_PIN);
-            }
-
-            @Override
-            public void loop() throws ConnectionLostException,
-                    InterruptedException {
-                led_.write(false);
-                Thread.sleep(500);
-                led_.write(true);
-                Thread.sleep(500);
-            }*/
         };
+    }
+
+
+    public float computeTemperature( double measuredVoltage )
+    {
+        //https://sourceforge.net/p/udssupervisor/code/ci/master/tree/src/main/java/org/deeg/uds/SteinhartHart.java
+
+        double A, B, C, voltageReference;
+        int    Resistance = 22200;
+        voltageReference = 3.3;
+        A = 2.3067434E-4;
+        B = 2.3696596E-4;
+        C = 1.2636414E-7;
+
+        double diff = voltageReference - measuredVoltage;
+        double measuredR = measuredVoltage * Resistance;
+        double resistence = measuredR / diff;
+
+        double logResistence = Math.log( resistence );
+        double t = A +
+                B * logResistence +
+                C * Math.pow( logResistence, 3.0 );
+
+        double T = 1.0 / t;
+
+        Log.d( "SteinhartHart", "Calculated temp of " + T + " from voltage " + measuredVoltage );
+        Log.d("kelvin_temp",Double.toString(T));
+        Log.d("cel_temp", Double.toString(T - 273.25));
+        double f_double = ((T- 273.25) * 9.0) / 5.0 + 32.0;
+        int f_temp = (int) f_double;
+        Log.d("f_temp", Integer.toString(f_temp));
+        return (float)T;
+    }
+
+    public int ConvertKelvin2Celcius(float temp)
+    {
+        float k = temp - (float)273.25;
+        return (int)k;
+    }
+
+    public int ConvetKelvin2Farenheight(float temp)
+    {
+        float k = temp - (float)273.25;
+        double f = (k * 9.0)/5.0 + 32.0;
+        return (int)f;
+    }
+
+
+    @Override
+    public void onDestroy()
+    {
+        super.onDestroy();
     }
 
     @Override
