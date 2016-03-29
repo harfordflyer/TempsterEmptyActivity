@@ -118,11 +118,11 @@ public class MainActivity extends AppCompatActivity {
 
         if(!initialStart)
         {
-            long time = SystemClock.elapsedRealtime();
+           /* long time = SystemClock.elapsedRealtime();
             long intervalOnPause = (SystemClock.elapsedRealtime() +  mLastStopTime);
             chrono.setBase(SystemClock.elapsedRealtime() + mLastStopTime);
 
-            chrono.start();
+            chrono.start();*/
         }
         else
         {
@@ -151,18 +151,7 @@ public class MainActivity extends AppCompatActivity {
 
         //do i need to do something here on first start... I will need to set all defaults on first start
         prefs = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE);
-        String restoredText = prefs.getString("targetPitTemp", null);
-
-        //set the configs here... should do this in separate function to set
-        //either defaults or changed values...TODO
-        if(restoredText == null)
-        {
-            ed_targetTemp.setText("250", TextView.BufferType.EDITABLE);
-        }
-        else
-        {
-            ed_targetTemp.setText(restoredText, TextView.BufferType.EDITABLE);
-        }
+        SetPreferences(prefs);
 
         config.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -170,9 +159,9 @@ public class MainActivity extends AppCompatActivity {
 
                 Intent intent = new Intent(MainActivity.this, ConfigActivity.class);
                 startActivityForResult(intent, 1);
-                mLastStopTime = chrono.getBase() - SystemClock.elapsedRealtime();
+               // mLastStopTime = chrono.getBase() - SystemClock.elapsedRealtime();
 
-                chrono.stop();
+               // chrono.stop();
 
             }
         });
@@ -209,6 +198,8 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         long intervalOnPause = (SystemClock.elapsedRealtime() - mLastStopTime);
                         chrono.setBase(chrono.getBase() + intervalOnPause);
+                       // chrono.setFormat("00:00:00");
+                       // chrono.setText("01:00:00");
                     }
                     StartIOIOServiceLoop(prefs);
                     chrono.start();
@@ -242,7 +233,9 @@ public class MainActivity extends AppCompatActivity {
         //IOIO service
         Intent intent = new Intent(MainActivity.this, IOIOLooperService.class);
         String sample = prefs.getString("sampleTime",null);
-        intent.putExtra("sampleTime", "30" );
+        String minTemp = prefs.getString("minTemp",null);
+        intent.putExtra("sampleTime", sample );
+        intent.putExtra("minTemp", minTemp);
         startService(intent);
     }
 
@@ -288,5 +281,31 @@ public class MainActivity extends AppCompatActivity {
 
             }
         }
+    }
+
+    private void SetPreferences(SharedPreferences prefs)
+    {
+        String restoredText = prefs.getString("targetPitTemp", null);
+        if(restoredText == null)
+        {
+            ed_targetTemp.setText("250", TextView.BufferType.EDITABLE);
+        }
+        else
+        {
+            ed_targetTemp.setText(restoredText, TextView.BufferType.EDITABLE);
+        }
+        //put some default values in the prefs so if the user doesn't visit the preferences
+        //before starting the timer, the program has some values to use.
+
+        SharedPreferences.Editor editor = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE).edit();
+        editor.putString("minTemp","230");
+        editor.putString("maxTemp", "260" );
+        editor.putString("fanSpeed","100" );
+        editor.putString("kp", "5" );
+        editor.putString("ki","1" );
+        editor.putString("kd", "1");
+        editor.putString("sampleTime", "30");
+        editor.putBoolean("saveGraph", true);
+        editor.apply();
     }
 }
