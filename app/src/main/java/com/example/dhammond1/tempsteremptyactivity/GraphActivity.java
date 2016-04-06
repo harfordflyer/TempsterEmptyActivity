@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,14 +32,23 @@ public class GraphActivity extends AppCompatActivity {
 
 
 
-    public void SetDataPoints() {
+    public void SetDataPoints() throws NullPointerException {
         GraphView graph = (GraphView)findViewById(R.id.graph);
         graph.getViewport().setScrollable(true);
         graph.getViewport().setScalable(true);
 
         DatabaseHandler dbHandler = handler.getInstance(getApplicationContext());
+        TemperatureEntry entry;
 
-        TemperatureEntry entry = dbHandler.getLastEntry();
+        try
+        {
+            entry = dbHandler.getLastEntry();
+        }
+        catch (Exception e)
+        {
+            Toast.makeText(getApplicationContext(),"Could not get last entry in database: No entry for the session.", Toast.LENGTH_LONG).show();
+            return;
+        }
 
         String date = entry.getDate();
 

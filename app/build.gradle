@@ -6,10 +6,12 @@ android {
 
     defaultConfig {
         applicationId "com.example.dhammond1.tempsteremptyactivity"
-        minSdkVersion 17
+        minSdkVersion 19
         targetSdkVersion 23
         versionCode 1
         versionName "1.0"
+        testApplicationId "com.example.dhammond1.tempsteremptyactivity.test"
+
     }
     buildTypes {
         release {
@@ -17,6 +19,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    sourceSets { main { java.srcDirs = ['src/main/java', 'src/main/java/2'] } }
 }
 
 dependencies {

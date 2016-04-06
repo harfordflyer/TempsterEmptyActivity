@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.Looper;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
@@ -21,138 +22,267 @@ import ioio.lib.util.IOIOLooper;
 
 import ioio.lib.util.android.IOIOService;
 
+import java.io.InterruptedIOException;
 import java.util.Timer;
 import java.util.TimerTask;
 
 
+
+//this was here originally
 public class IOIOLooperService extends IOIOService {
     private static final String CONFIG_NAME = "AppConfig";
-   // SharedPreferences config = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE);
-   // String restoredText = config.getString("sampleTime", null);
+
     int sampleTime;
+    int minTemp;
+    int setPoint;
+    int kp, ki, kd;
     int initialWait = 15000;
     int pin45 = 45;
     int pin46 = 46;
+    int pin40 = 40;
+    int pin39 = 39;
+    private BaseIOIOLooper baselooper;
+    private Looper m_looper;
+    private PID pid;
+    private boolean pidLoopRunning;
+    private double[] pidOutput;
 
     public static float pitVoltage = 0;
     public static float meatVoltage = 0;
 
-
+    //new
     @Override
-    protected IOIOLooper createIOIOLooper() {
-        return new BaseIOIOLooper() {
+    protected synchronized IOIOLooper createIOIOLooper(){
+        if ( m_looper == null )
+            m_looper = new Looper();
 
+        pidLoopRunning = false;
+        return m_looper;
+    }
 
-            private DigitalOutput led_;
-            private AnalogInput pitInput;
-            private AnalogInput meatInput;
+    //new
+    private class Looper extends BaseIOIOLooper //implements Runnable
+    {
+        public DigitalOutput led_;
+        public DigitalOutput fan;
+        public AnalogInput pitInput;
+        public AnalogInput meatInput;
+        public boolean isPIDRunning;
+        public boolean isOutputOpen;
 
+        //Initialize Timer Stuff
+        Timer t = new Timer();
+        TimerTask controlLoop = new TimerTask(){
 
-            //Initialize Timer Stuff
-            Timer t = new Timer();
-            TimerTask controlLoop = new TimerTask(){
-
-                @Override
-                public void run() {
-                    try {
-                        controlLoop();
-                    } catch (ConnectionLostException e) {
-                        e.printStackTrace();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-
-                }
-
-            };
-
-            //IOIO Setup Method
             @Override
-            protected void setup() throws ConnectionLostException,
-                    InterruptedException {
-                //Setup IOIO Pins
-                led_ = ioio_.openDigitalOutput(IOIO.LED_PIN);
-
-
-                //Increase thread priority
-                Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
-
-                //Set timer to execute 'controlLoop' after a xxms delay every xxms
-                t.schedule(controlLoop, initialWait, sampleTime);
-            }
-
-
-
-            //Control Loop Method
-            protected synchronized void controlLoop() throws ConnectionLostException,
-                    InterruptedException {
-
-                //flash the IOIO before taking a temp
-                for(int i = 0; i < 3; i++) {
-                    led_.write(true);
-                    Thread.sleep(750);
-                    led_.write(false);
+            public void run() {
+                try {
+                    controlLoop();
+                } catch (ConnectionLostException e) {
+                    e.printStackTrace();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-
-
-                double totalVolts = 0;
-                int samples = 0;
-                double averageVolts = 0;
-                int overflowCount = 0;
-
-                //measure all pit voltages
-                pitInput = ioio_.openAnalogInput(pin45);
-                pitInput.setBuffer(256);
-
-                Log.d("# pit sample voltages ", String.valueOf(samples));
-
-                for (int i = 0; i < 256; i++) {
-                    totalVolts += pitInput.getVoltageBuffered();
-                }
-
-                averageVolts = totalVolts / (double)256;
-                pitVoltage = (float)averageVolts;
-                Log.d("avg voltage on pit ", String.valueOf(pitVoltage));
-                pitInput.close();
-
-                //measure all meat voltages
-                totalVolts = 0;
-                meatInput = ioio_.openAnalogInput(pin46);
-                meatInput.setBuffer(256);
-                samples = meatInput.available();
-                Log.d("# meat sample voltages ", String.valueOf(samples));
-
-                for (int i = 0; i < 256; i++) {
-                    totalVolts += meatInput.getVoltageBuffered();
-                }
-
-
-                averageVolts = totalVolts / (double)256;
-                meatVoltage = (float)averageVolts;
-                Log.d("avg voltage on meat ", String.valueOf(meatVoltage));
-                meatInput.close();
-
-
-
-                //convert the voltages to real temps
-                int[] values = new int[2];
-                float meatTemp = computeTemperature(meatVoltage);
-                values[0] = ConvetKelvin2Farenheight(meatTemp);
-
-                float pitTemp = computeTemperature(pitVoltage);
-                values[1] = ConvetKelvin2Farenheight(pitTemp);
-
-
-                //send the results back to the main acitivity
-                Intent intent = new Intent("results");
-                intent.putExtra("temps", values);
-                sendBroadcast(intent);
-                LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
 
             }
 
         };
+
+        Timer ledTimer = new Timer();
+        TimerTask ledLoop = new TimerTask(){
+            @Override
+            public void run(){
+                for (int i = 0; i < 3; i++) {
+                    try {
+                        led_.write(true);
+                        Thread.sleep(750);
+                        led_.write(false);
+                    }
+                    catch(ConnectionLostException e)
+                    {
+
+                    }
+                    catch(InterruptedException ie)
+                    {
+
+                    }
+                }
+
+                            }
+
+
+        };
+
+        protected void StopTimerTasks()
+        {
+            controlLoop.cancel();
+            ledLoop.cancel();
+        }
+
+        //IOIO Setup Method
+        @Override
+        protected void setup() throws ConnectionLostException,
+                InterruptedException {
+            //Setup IOIO Pins
+            led_ = ioio_.openDigitalOutput(IOIO.LED_PIN);
+
+            isOutputOpen = false;
+
+            //Increase thread priority
+            Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+
+            if(pidLoopRunning)
+            {
+                pid.Stop();
+            }
+            StartPIDTask();
+
+            //timer for flahsing leds
+            ledTimer.schedule(ledLoop, initialWait, initialWait);
+        }
+
+        public void StartPIDTask()
+        {
+            //setup the PID
+            pid = new PID();
+            //since array values are passed by value, we will use one here to get the
+            //output from the PID algorithm
+            pidOutput = new double[1];
+            //get values from intent
+            pid.SetTunings(kp, ki, kd);
+            pid.SetOutputLimits(0, 255);
+            pid.SetSampleTime(sampleTime);
+            pid.SetControllerDirection(pid.DIRECT);
+            pid.enable();
+            pid.SetMode(pid.AUTOMATIC);
+            pid.SetContext(getApplicationContext());
+            //starting with a 5 second compute loop... this could be a var in shared preferences
+            pid.StartPID(5);
+
+
+            pid.Setpoint = 250; //what are we trying to get to
+            pid.SetMode( pid.AUTOMATIC);
+
+            pid.SetOutputLimits(0, 255);
+
+            pid.SetTunings(3, 0, 0);
+
+            pid.Initialize();
+
+            //Set timer to execute 'controlLoop' after a xxms delay every xxms
+            t.schedule(controlLoop, initialWait, sampleTime);
+            isPIDRunning = true;
+        }
+
+        protected synchronized void controlLoop() throws ConnectionLostException,
+                InterruptedException {
+
+            //FOR TEST
+            isPIDRunning = false;
+
+            try
+            {
+                fan = ioio_.openDigitalOutput(14);
+            }
+            catch(Exception e)
+            {
+                if(e instanceof IllegalArgumentException)
+                {
+                    Log.d("Pin open","IllegalArgumentException... pin probably open");
+                }
+                else
+                {
+                    throw new RuntimeException("Digital output pin failed");
+                }
+            }
+
+            //if the PID is running, don't force the base on the transistor low
+            if(!isPIDRunning)
+            {
+
+                fan.write(false);
+            }
+
+
+            //Lets take some temps
+
+            pitInput = ioio_.openAnalogInput(pin45);
+            pitVoltage = GetVoltagesFromAnalogProbe(pitInput);
+
+            Log.d("avg voltage on pit ", String.valueOf(pitVoltage));
+            pitInput.close();
+
+            meatInput = ioio_.openAnalogInput(pin46);
+            meatVoltage = GetVoltagesFromAnalogProbe(meatInput);
+
+            Log.d("avg voltage on meat ", String.valueOf(meatVoltage));
+            meatInput.close();
+
+            //convert the voltages to real temps
+            int[] values = new int[2];
+            float meatTemp = computeTemperature(meatVoltage);
+            values[0] = ConvetKelvin2Farenheight(meatTemp);
+
+            float pitTemp = computeTemperature(pitVoltage);
+            values[1] = ConvetKelvin2Farenheight(pitTemp);
+
+            //for now we will check for the delta of the input and min temps and pass that
+            //to the PID
+            pid.Input = (double)values[1];
+            Log.d("PIDInputfromService", String.valueOf((double)values[1]));
+            pid.Compute();
+            Log.d("PIDOutputfromService", String.valueOf(pidOutput[0]));
+
+
+            //send the results back to the main acitivity
+            Intent intent = new Intent("results");
+            intent.putExtra("temps", values);
+            sendBroadcast(intent);
+            LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
+
+        }
+
+
     }
+
+
+    private  float GetVoltagesFromAnalogProbe(AnalogInput input) throws ConnectionLostException, InterruptedException
+    {
+        double averageVolts = 0;
+        double totalVolts = 0;
+        int samples = 0;
+        //AnalogInput a_input = ioio_.openAnalogInput(pin45);
+
+        input.setBuffer(256);
+        samples = input.available();
+        Log.d("# pit sample voltages ", String.valueOf(samples));
+
+        for (int i = 0; i < 256; i++) {
+            totalVolts += input.getVoltageBuffered();
+        }
+
+        averageVolts = totalVolts / (double)256;
+        return (float)averageVolts;
+    }
+
+  /*
+                if(values[0] <= 80)
+               // if(values[0] <= minTemp)
+                {
+                    //kick of the PID algorithm
+                    //Place PID code here
+                    fan.write(true);
+                }
+                else
+                {
+                    fan.write(false);
+                    fan.close();
+                }
+
+            }
+
+        };
+    }*/
 
 
     public float computeTemperature( double measuredVoltage )
@@ -203,13 +333,27 @@ public class IOIOLooperService extends IOIOService {
     @Override
     public void onDestroy()
     {
+        //kill the timer tasks
+        m_looper.StopTimerTasks();
+        Log.d("onDestroy","being called");
         super.onDestroy();
+        Log.d("onDestroy", "being called");
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         String sample = intent.getStringExtra("sampleTime");
         sampleTime = Integer.parseInt(sample) * 1000;
+        String minT = intent.getStringExtra("minTemp");
+        minTemp = Integer.parseInt(minT);
+        String k = intent.getStringExtra("kp");
+        kp = Integer.parseInt(k);
+        k = intent.getStringExtra("ki");
+        ki = Integer.parseInt(k);
+        k = intent.getStringExtra("kd");
+        kd = Integer.parseInt(k);
+        String target = intent.getStringExtra("targetPitTemp");
+        setPoint = Integer.parseInt(target);
 
         super.onStartCommand(intent, flags, startId);
 

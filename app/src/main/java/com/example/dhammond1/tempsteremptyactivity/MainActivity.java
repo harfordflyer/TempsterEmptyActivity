@@ -20,6 +20,7 @@ import android.widget.TextView;
 import android.content.Context;
 
 import java.util.Calendar;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -159,17 +160,16 @@ public class MainActivity extends AppCompatActivity {
 
                 Intent intent = new Intent(MainActivity.this, ConfigActivity.class);
                 startActivityForResult(intent, 1);
-               // mLastStopTime = chrono.getBase() - SystemClock.elapsedRealtime();
+                // mLastStopTime = chrono.getBase() - SystemClock.elapsedRealtime();
 
-               // chrono.stop();
+                // chrono.stop();
 
             }
         });
 
-        graph.setOnClickListener(new View.OnClickListener(){
+        graph.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v)
-            {
+            public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this, GraphActivity.class);
                 MainActivity.this.startActivity(intent);
 
@@ -180,9 +180,8 @@ public class MainActivity extends AppCompatActivity {
 
         set.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v)
-            {
-                SharedPreferences.Editor editor = getApplicationContext().getSharedPreferences(CONFIG_NAME,Context.MODE_PRIVATE).edit();
+            public void onClick(View v) {
+                SharedPreferences.Editor editor = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE).edit();
                 String s = ed_targetTemp.getText().toString();
                 editor.putString("targetPitTemp", ed_targetTemp.getText().toString());
                 editor.apply();
@@ -198,10 +197,11 @@ public class MainActivity extends AppCompatActivity {
                     } else {
                         long intervalOnPause = (SystemClock.elapsedRealtime() - mLastStopTime);
                         chrono.setBase(chrono.getBase() + intervalOnPause);
-                       // chrono.setFormat("00:00:00");
-                       // chrono.setText("01:00:00");
+                        // chrono.setFormat("00:00:00");
+                        // chrono.setText("01:00:00");
                     }
                     StartIOIOServiceLoop(prefs);
+                    isServiceRunning = true;
                     chrono.start();
 
                 }
@@ -234,8 +234,23 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(MainActivity.this, IOIOLooperService.class);
         String sample = prefs.getString("sampleTime",null);
         String minTemp = prefs.getString("minTemp",null);
+        String kp = prefs.getString("kp", null);
+        String ki = prefs.getString("ki", null);
+        String kd = prefs.getString("kd", null);
+        String targetTemp = null;
+        targetTemp = prefs.getString("targetPitTemp", null);
+
+        if(Objects.equals(targetTemp, null))
+        {
+            targetTemp = ed_targetTemp.getText().toString();
+        }
+
         intent.putExtra("sampleTime", sample );
         intent.putExtra("minTemp", minTemp);
+        intent.putExtra("kp", kp);
+        intent.putExtra("ki", ki);
+        intent.putExtra("kd", kd);
+        intent.putExtra("targetPitTemp",targetTemp);
         startService(intent);
     }
 
@@ -276,10 +291,29 @@ public class MainActivity extends AppCompatActivity {
     public void onActivityResult(int requestCode, int resultCode, Intent data){
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 1) {
-            if(resultCode == 1){
-                saveGraphData = data.getBooleanExtra("saveGraphData", true);
+            switch (resultCode)
+            {
+                case 1:
+                {
+                    saveGraphData = data.getBooleanExtra("saveGraphData", true);
+                    break;
+                }
+                case 2:
+                {
+                    //stop and start the service with the new PID values
+                    if(isServiceRunning)
+                    {
+                        StopIOIOService();
+                        StartIOIOServiceLoop(prefs);
+                    }
+                    break;
+                }
 
             }
+            /*if(resultCode == 1){
+                saveGraphData = data.getBooleanExtra("saveGraphData", true);
+
+            }*/
         }
     }
 
@@ -304,7 +338,7 @@ public class MainActivity extends AppCompatActivity {
         editor.putString("kp", "5" );
         editor.putString("ki","1" );
         editor.putString("kd", "1");
-        editor.putString("sampleTime", "30");
+        editor.putString("sampleTime", "5");
         editor.putBoolean("saveGraph", true);
         editor.apply();
     }

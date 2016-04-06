@@ -10,6 +10,7 @@
       <module fileurl="file://$PROJECT_DIR$/IOIOLibCore-5.07/IOIOLibCore-5.07.iml" filepath="$PROJECT_DIR$/IOIOLibCore-5.07/IOIOLibCore-5.07.iml" />
       <module fileurl="file://$PROJECT_DIR$/TempsterEmptyActivity.iml" filepath="$PROJECT_DIR$/TempsterEmptyActivity.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/flanagan/flanagan.iml" filepath="$PROJECT_DIR$/flanagan/flanagan.iml" />
     </modules>
   </component>
 </project>

@@ -13,6 +13,7 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import java.util.Calendar;
+import java.util.Objects;
 
 public class ConfigActivity extends AppCompatActivity {
 
@@ -64,12 +65,21 @@ public class ConfigActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed(){
-        SaveConfigurations();
-        Intent intent = new Intent();
+        if(SaveConfigurations())
+        {
+            Intent intent = new Intent();
+            intent.putExtra("pidChanged", true);
+            setResult(2, intent);
+           // finish();
+        }
+
         //I don't have to do this as the data is saved in the SharedPreferences
         //But I'm leaving it in for example purposes
-        intent.putExtra("saveGraphData", b_saveGraphData);
-        setResult(1, intent);
+        //intent.putExtra("saveGraphData", b_saveGraphData);
+        //setResult(1, intent);
+
+
+
         finish();
     };
 
@@ -97,7 +107,7 @@ public class ConfigActivity extends AppCompatActivity {
         SetTextBox(ed_currentKd, restoredText, "1");
 
         restoredText = config.getString("sampleTime", null);
-        SetTextBox(ed_sampleTime, restoredText, "30");
+        SetTextBox(ed_sampleTime, restoredText, "5");
 
         Boolean restoredBool = config.getBoolean("saveGraph", true);
         if(!restoredBool) {
@@ -118,19 +128,72 @@ public class ConfigActivity extends AppCompatActivity {
         }
     }
 
-    public void SaveConfigurations()
+    public boolean SaveConfigurations()
     {
+        boolean itemsChanged = false;
+        boolean pidItemsChanged = false;
+        SharedPreferences config = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE).edit();
         //editor.putString("targetPit", ed_targetPit.getText().toString());
-        editor.putString("minTemp", ed_minTemp.getText().toString());
-        editor.putString("maxTemp", ed_maxTemp.getText().toString());
-        editor.putString("fanSpeed", ed_fanSpeed.getText().toString());
-        editor.putString("kp", ed_currentKp.getText().toString());
-        editor.putString("ki", ed_currentKi.getText().toString());
-        editor.putString("kd", ed_currentKd.getText().toString());
-        editor.putString("sampleTime", ed_sampleTime.getText().toString());
-        editor.putBoolean("saveGraph", chk_saveGraph.isChecked());
-        editor.apply();
+        if(!Objects.equals(config.getString("minTemp", null), ed_minTemp.getText().toString()))
+        {
+            editor.putString("minTemp", ed_minTemp.getText().toString());
+            itemsChanged = true;
+        }
+
+        if(!Objects.equals(config.getString("maxTemp", null),ed_maxTemp.getText().toString()))
+        {
+            editor.putString("maxTemp", ed_maxTemp.getText().toString());
+            itemsChanged = true;
+        }
+
+        if(!Objects.equals(config.getString("fanSpeed",null),ed_fanSpeed.getText().toString()))
+        {
+            editor.putString("fanSpeed", ed_fanSpeed.getText().toString());
+            itemsChanged = true;
+        }
+
+
+        //PID values are going to be treated differently if they change so I
+        //can change the values on the fly
+        if(!Objects.equals(config.getString("kp",null), ed_currentKp.getText().toString()))
+        {
+            editor.putString("kp", ed_currentKp.getText().toString());
+            itemsChanged = true;
+            pidItemsChanged = true;
+        }
+
+        if(!Objects.equals(config.getString("ki",null), ed_currentKi.getText().toString()))
+        {
+            editor.putString("ki", ed_currentKi.getText().toString());
+            itemsChanged = true;
+            pidItemsChanged = true;
+        }
+
+        if(!Objects.equals(config.getString("kd",null), ed_currentKd.getText().toString()))
+        {
+            editor.putString("kd", ed_currentKd.getText().toString());
+            itemsChanged = true;
+            pidItemsChanged = true;
+        }
+
+        if(!Objects.equals(config.getString("sampleTime",null), ed_sampleTime.getText().toString()))
+        {
+            editor.putString("sampleTime", ed_sampleTime.getText().toString());
+            itemsChanged = true;
+        }
+
+        if(!Objects.equals(config.getBoolean("saveGraph", true), chk_saveGraph.isChecked()))
+        {
+            editor.putBoolean("saveGraph", chk_saveGraph.isChecked());
+            itemsChanged = true;
+        }
+
+        if(itemsChanged){
+            editor.apply();
+        }
+
+        return pidItemsChanged;
     }
 
 

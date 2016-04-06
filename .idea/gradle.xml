@@ -17,6 +17,7 @@
             <option value="$PROJECT_DIR$/IOIOLibAndroidDevice-release" />
             <option value="$PROJECT_DIR$/IOIOLibCore-5.07" />
             <option value="$PROJECT_DIR$/app" />
+            <option value="$PROJECT_DIR$/flanagan" />
           </set>
         </option>
       </GradleProjectSettings>

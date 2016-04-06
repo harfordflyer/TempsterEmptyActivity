@@ -1,11 +1,20 @@
 package com.example.dhammond1.tempsteremptyactivity;
 
+import android.content.Context;
+import android.content.Intent;
+import android.support.v4.content.LocalBroadcastManager;
+import android.util.Log;
+
+import java.util.Timer;
+import java.util.TimerTask;
+
 /**
  * Created by dhammond1 on 3/10/2016.
  */
 public class PID {
 
     /*working variables*/
+    Context m_context;
     long lastTime;
     public double Input, Output, Setpoint;
     double ITerm, lastInput;
@@ -13,9 +22,71 @@ public class PID {
     long SampleTime = 1000; //1 sec
     double outMin, outMax;
     boolean inAuto = false;
-    static int MANUAL = 0;
-    static int AUTOMATIC = 1;
+    public static int MANUAL = 0;
+    public static int AUTOMATIC = 1;
+    private int controllDirection;
+    java.util.Timer m_controlLoop;
+    int m_period;
+    boolean m_enabled;
+    int DIRECT = 0;
+    int REVERSE = 1;
 
+    public PID()
+    {
+        controllDirection = DIRECT;
+    }
+
+    public void Stop()
+    {
+        m_controlLoop.cancel();
+    }
+
+    public void StartPID(int period)
+    {
+        m_controlLoop = new java.util.Timer();
+        m_period = period;
+
+        m_controlLoop.schedule(new PIDTask(this), 0L, (long) (m_period * 1000));
+    }
+
+    public void free() {
+        m_controlLoop.cancel();
+        m_controlLoop = null;
+    }
+
+    private class PIDTask extends TimerTask {
+
+        private PID m_controller;
+
+        public PIDTask(PID controller) {
+            if (controller == null) {
+                throw new NullPointerException("Given PIDController was null");
+            }
+            m_controller = controller;
+        }
+
+        public void run() {
+            //Log.d("StartingCompute","RunningFromTask");
+            m_controller.Compute();
+        }
+    }
+
+    public synchronized void enable() {
+        m_enabled = true;
+    }
+
+
+    public synchronized void disable() {
+
+        m_enabled = false;
+    }
+
+    /**
+     * Return true if PIDController is enabled.
+     */
+    public synchronized boolean isEnable() {
+        return m_enabled;
+    }
 
 
     public void Compute()
@@ -23,28 +94,45 @@ public class PID {
         if(!inAuto) return;
         long now = System.currentTimeMillis();
         long timeChange = (now - lastTime);
-        if(timeChange>=SampleTime)
-        {
+        if(m_enabled) {
+            synchronized (this) {
+                if (timeChange >= SampleTime) {
       /*Compute all the working error variables*/
-            double error = Setpoint - Input;
-            ITerm+= (ki * error);
-            if(ITerm> outMax)
-                ITerm= outMax;
-            else if(ITerm< outMin)
-                ITerm= outMin;
-            double dInput = (Input - lastInput);
+                    double error = Setpoint - Input;
+                    ITerm += (ki * error);
+                    if (ITerm > outMax)
+                        ITerm = outMax;
+                    else if (ITerm < outMin)
+                        ITerm = outMin;
+                    double dInput = (Input - lastInput);
 
       /*Compute PID Output*/
-            Output = kp * error + ITerm- kd * dInput;
-            if(Output> outMax)
-                Output = outMax;
-            else if(Output < outMin)
-                Output = outMin;
-
+                    Output = kp * error + ITerm - kd * dInput;
+                    if (Output > outMax)
+                        Output = outMax;
+                    else if (Output < outMin)
+                        Output = outMin;
+                    Log.d("PIDOutput", String.valueOf(Output));
       /*Remember some variables for next time*/
-            lastInput = Input;
-            lastTime = now;
+                    lastInput = Input;
+                    lastTime = now;
+
+                    //send the results back to the main acitivity
+                    Intent intent = new Intent("results");
+                    intent.putExtra("output", Output);
+                    m_context.sendBroadcast(intent);
+                    LocalBroadcastManager.getInstance(m_context.getApplicationContext()).sendBroadcast(intent);
+
+                   // Log.d("InputPIDClass", String.valueOf(Input));
+                   // Log.d("OutputPIDClass", String.valueOf(Output));
+                }
+            }
         }
+    }
+
+    public void SetContext(Context context)
+    {
+        m_context = context;
     }
 
     public void SetTunings(double Kp, double Ki, double Kd)
@@ -53,6 +141,13 @@ public class PID {
         kp = Kp;
         ki = Ki * SampleTimeInSec;
         kd = Kd / SampleTimeInSec;
+
+        if(controllDirection == REVERSE)
+        {
+            kp = (0 - kp);
+            ki = (0 - ki);
+            kd = (0 - kd);
+        }
     }
 
     public void SetSampleTime(int NewSampleTime)
@@ -94,7 +189,16 @@ public class PID {
     {
         lastInput = Input;
         ITerm = Output;
-        if(ITerm> outMax) ITerm= outMax;
-        else if(ITerm< outMin) ITerm= outMin;
+        if(ITerm > outMax) {
+            ITerm = outMax;
+        }
+        else if(ITerm < outMin){
+            ITerm= outMin;
+        }
+    }
+
+    public void SetControllerDirection(int direction)
+    {
+        controllDirection = direction;
     }
 }
