@@ -16,6 +16,7 @@ import android.util.Log;
 import ioio.lib.api.AnalogInput;
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.IOIO;
+import ioio.lib.api.PwmOutput;
 import ioio.lib.api.exception.ConnectionLostException;
 import ioio.lib.util.BaseIOIOLooper;
 import ioio.lib.util.IOIOLooper;
@@ -61,14 +62,15 @@ public class IOIOLooperService extends IOIOService {
     }
 
     //new
-    private class Looper extends BaseIOIOLooper //implements Runnable
+    private class Looper extends BaseIOIOLooper implements PIDSource, PIDOutput
     {
         public DigitalOutput led_;
-        public DigitalOutput fan;
+        public PwmOutput pwmOutput;
         public AnalogInput pitInput;
         public AnalogInput meatInput;
         public boolean isPIDRunning;
         public boolean isOutputOpen;
+        int[] temperatureValues = new int[2];
 
         //Initialize Timer Stuff
         Timer t = new Timer();
@@ -117,6 +119,7 @@ public class IOIOLooperService extends IOIOService {
         {
             controlLoop.cancel();
             ledLoop.cancel();
+            pid.Stop();
         }
 
         //IOIO Setup Method
@@ -137,6 +140,7 @@ public class IOIOLooperService extends IOIOService {
             }
             StartPIDTask();
 
+            Log.d("LED TIMER:", "Scheduling LED Timer");
             //timer for flahsing leds
             ledTimer.schedule(ledLoop, initialWait, initialWait);
         }
@@ -144,32 +148,26 @@ public class IOIOLooperService extends IOIOService {
         public void StartPIDTask()
         {
             //setup the PID
-            pid = new PID();
+            pid = new PID(this, this);
             //since array values are passed by value, we will use one here to get the
             //output from the PID algorithm
             pidOutput = new double[1];
             //get values from intent
+            pid.SetControllerDirection(pid.REVERSE);
             pid.SetTunings(kp, ki, kd);
             pid.SetOutputLimits(0, 255);
             pid.SetSampleTime(sampleTime);
-            pid.SetControllerDirection(pid.DIRECT);
+
             pid.enable();
             pid.SetMode(pid.AUTOMATIC);
             pid.SetContext(getApplicationContext());
             //starting with a 5 second compute loop... this could be a var in shared preferences
             pid.StartPID(5);
-
-
-            pid.Setpoint = 250; //what are we trying to get to
-            pid.SetMode( pid.AUTOMATIC);
-
-            pid.SetOutputLimits(0, 255);
-
-            pid.SetTunings(3, 0, 0);
-
+            pid.Setpoint = setPoint; //what are we trying to get to
             pid.Initialize();
 
             //Set timer to execute 'controlLoop' after a xxms delay every xxms
+            Log.d("CONTROL LOOP TIMER:", "Scheduling control loop Timer");
             t.schedule(controlLoop, initialWait, sampleTime);
             isPIDRunning = true;
         }
@@ -179,10 +177,10 @@ public class IOIOLooperService extends IOIOService {
 
             //FOR TEST
             isPIDRunning = false;
-
+            Log.d("CONTROL LOOP:", "starting control loop");
             try
             {
-                fan = ioio_.openDigitalOutput(14);
+                pwmOutput = ioio_.openPwmOutput(14,1000);
             }
             catch(Exception e)
             {
@@ -200,7 +198,7 @@ public class IOIOLooperService extends IOIOService {
             if(!isPIDRunning)
             {
 
-                fan.write(false);
+                pwmOutput.setDutyCycle(0.0f);
             }
 
 
@@ -209,40 +207,68 @@ public class IOIOLooperService extends IOIOService {
             pitInput = ioio_.openAnalogInput(pin45);
             pitVoltage = GetVoltagesFromAnalogProbe(pitInput);
 
-            Log.d("avg voltage on pit ", String.valueOf(pitVoltage));
+            //Log.d("avg voltage on pit ", String.valueOf(pitVoltage));
             pitInput.close();
 
             meatInput = ioio_.openAnalogInput(pin46);
             meatVoltage = GetVoltagesFromAnalogProbe(meatInput);
 
-            Log.d("avg voltage on meat ", String.valueOf(meatVoltage));
+          //  Log.d("avg voltage on meat ", String.valueOf(meatVoltage));
             meatInput.close();
 
             //convert the voltages to real temps
-            int[] values = new int[2];
+            //int[] values = new int[2];
             float meatTemp = computeTemperature(meatVoltage);
-            values[0] = ConvetKelvin2Farenheight(meatTemp);
+            temperatureValues[0] = ConvetKelvin2Farenheight(meatTemp);
 
             float pitTemp = computeTemperature(pitVoltage);
-            values[1] = ConvetKelvin2Farenheight(pitTemp);
+            temperatureValues[1] = ConvetKelvin2Farenheight(pitTemp);
 
             //for now we will check for the delta of the input and min temps and pass that
             //to the PID
-            pid.Input = (double)values[1];
-            Log.d("PIDInputfromService", String.valueOf((double)values[1]));
+           // pid.Input = (double)temperatureValues[1];
+            //Log.d("PIDInputfromService", String.valueOf((double)temperatureValues[1]));
             pid.Compute();
-            Log.d("PIDOutputfromService", String.valueOf(pidOutput[0]));
+            //Log.d("PIDOutputfromService", String.valueOf(pidOutput[0]));
 
 
             //send the results back to the main acitivity
             Intent intent = new Intent("results");
-            intent.putExtra("temps", values);
+            intent.putExtra("temps", temperatureValues);
             sendBroadcast(intent);
             LocalBroadcastManager.getInstance(getApplicationContext()).sendBroadcast(intent);
 
         }
 
+        public double pidGet()
+        {
+            double returnVal = 0;
+            returnVal = (double)temperatureValues[1];
+            String val = "returning" + String.valueOf((double)returnVal) + "to PID";
+            Log.d("PIDGET", val);
+            return returnVal;
+        }
 
+        @Override
+        public void pidWrite(double pwm)
+        {
+            //heres where we set the fan blowing algorithm
+            float dutyCycle = (float)pwm / 255.0f;
+            //set the duty cycle on pin 14
+            try
+            {
+                String val = "PIDWRITE " + String.valueOf((double)dutyCycle);
+                Log.d("pidWrite",val);
+                if(pwmOutput != null)
+                {
+                    pwmOutput.setDutyCycle(dutyCycle);
+                }
+            }
+            catch(ConnectionLostException e)
+            {
+                Log.d("Connection","Connection Lost Exception");
+            }
+        }
     }
 
 
@@ -251,11 +277,11 @@ public class IOIOLooperService extends IOIOService {
         double averageVolts = 0;
         double totalVolts = 0;
         int samples = 0;
-        //AnalogInput a_input = ioio_.openAnalogInput(pin45);
+
 
         input.setBuffer(256);
         samples = input.available();
-        Log.d("# pit sample voltages ", String.valueOf(samples));
+       // Log.d("# pit sample voltages ", String.valueOf(samples));
 
         for (int i = 0; i < 256; i++) {
             totalVolts += input.getVoltageBuffered();
@@ -264,25 +290,6 @@ public class IOIOLooperService extends IOIOService {
         averageVolts = totalVolts / (double)256;
         return (float)averageVolts;
     }
-
-  /*
-                if(values[0] <= 80)
-               // if(values[0] <= minTemp)
-                {
-                    //kick of the PID algorithm
-                    //Place PID code here
-                    fan.write(true);
-                }
-                else
-                {
-                    fan.write(false);
-                    fan.close();
-                }
-
-            }
-
-        };
-    }*/
 
 
     public float computeTemperature( double measuredVoltage )
@@ -307,12 +314,12 @@ public class IOIOLooperService extends IOIOService {
 
         double T = 1.0 / t;
 
-        Log.d( "SteinhartHart", "Calculated temp of " + T + " from voltage " + measuredVoltage );
-        Log.d("kelvin_temp",Double.toString(T));
-        Log.d("cel_temp", Double.toString(T - 273.25));
+        //Log.d( "SteinhartHart", "Calculated temp of " + T + " from voltage " + measuredVoltage );
+        //Log.d("kelvin_temp",Double.toString(T));
+        //Log.d("cel_temp", Double.toString(T - 273.25));
         double f_double = ((T- 273.25) * 9.0) / 5.0 + 32.0;
         int f_temp = (int) f_double;
-        Log.d("f_temp", Integer.toString(f_temp));
+        //Log.d("f_temp", Integer.toString(f_temp));
         return (float)T;
     }
 
