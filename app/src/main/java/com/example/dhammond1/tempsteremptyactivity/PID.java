@@ -25,33 +25,42 @@ public class PID {
     public static int MANUAL = 0;
     public static int AUTOMATIC = 1;
     private int controllDirection;
-    java.util.Timer m_controlLoop;
+    java.util.Timer m_pid_controlLoop;
     int m_period;
     boolean m_enabled;
     int DIRECT = 0;
     int REVERSE = 1;
+    int initalWait = 60000;
+    PIDSource pidSource;
+    PIDOutput pidOutput;
 
-    public PID()
+    public PID(PIDSource source, PIDOutput output)
     {
+        pidSource = source;
+        pidOutput = output;
         controllDirection = DIRECT;
     }
 
     public void Stop()
     {
-        m_controlLoop.cancel();
+        m_pid_controlLoop.cancel();
     }
 
     public void StartPID(int period)
     {
-        m_controlLoop = new java.util.Timer();
+        Log.d("PID_LOOP_SAMPLE",String.valueOf(period));
+        m_pid_controlLoop = new java.util.Timer();
         m_period = period;
+        //wait 60 seconds before we start trying to adjust the temperature
+        m_pid_controlLoop.schedule(new PIDTask(this), initalWait, (long) (m_period ));
 
-        m_controlLoop.schedule(new PIDTask(this), 0L, (long) (m_period * 1000));
     }
 
+
+
     public void free() {
-        m_controlLoop.cancel();
-        m_controlLoop = null;
+        m_pid_controlLoop.cancel();
+        m_pid_controlLoop = null;
     }
 
     private class PIDTask extends TimerTask {
@@ -91,7 +100,12 @@ public class PID {
 
     public void Compute()
     {
-        if(!inAuto) return;
+        Log.d("PID_LOOP_SAMPLE",String.valueOf(m_period));
+        if(!inAuto)
+        {
+            return;
+        }
+        Input = pidSource.pidGet();
         long now = System.currentTimeMillis();
         long timeChange = (now - lastTime);
         if(m_enabled) {
@@ -99,6 +113,11 @@ public class PID {
                 if (timeChange >= SampleTime) {
       /*Compute all the working error variables*/
                     double error = Setpoint - Input;
+                    if(controllDirection == DIRECT)
+                    {
+                        error = Math.abs(error);
+                    }
+
                     ITerm += (ki * error);
                     if (ITerm > outMax)
                         ITerm = outMax;
@@ -107,6 +126,13 @@ public class PID {
                     double dInput = (Input - lastInput);
 
       /*Compute PID Output*/
+                    Log.d("setpoint:", String.valueOf((double)Setpoint));
+                    Log.d("input:", String.valueOf((double)Input));
+                    Log.d("kp", String.valueOf((double)kp));
+                    Log.d("error:", String.valueOf((double)error));
+                    Log.d("ITerm:", String.valueOf((double)ITerm));
+                    Log.d("lastInput:", String.valueOf((double)lastInput));
+                    Log.d("dInput:", String.valueOf((double)dInput));
                     Output = kp * error + ITerm - kd * dInput;
                     if (Output > outMax)
                         Output = outMax;
@@ -116,12 +142,12 @@ public class PID {
       /*Remember some variables for next time*/
                     lastInput = Input;
                     lastTime = now;
-
-                    //send the results back to the main acitivity
+                    pidOutput.pidWrite(Output);
+                    /*//send the results back to the main acitivity
                     Intent intent = new Intent("results");
                     intent.putExtra("output", Output);
                     m_context.sendBroadcast(intent);
-                    LocalBroadcastManager.getInstance(m_context.getApplicationContext()).sendBroadcast(intent);
+                    LocalBroadcastManager.getInstance(m_context.getApplicationContext()).sendBroadcast(intent);*/
 
                    // Log.d("InputPIDClass", String.valueOf(Input));
                    // Log.d("OutputPIDClass", String.valueOf(Output));
@@ -144,9 +170,13 @@ public class PID {
 
         if(controllDirection == REVERSE)
         {
-            kp = (0 - kp);
+            kp = -kp;
+            ki = -ki;
+            kd = -kd;
+            Log.d("kp sign is; ", String.valueOf((double)kp));
+            /*kp = (0 - kp);
             ki = (0 - ki);
-            kd = (0 - kd);
+            kd = (0 - kd);*/
         }
     }
 

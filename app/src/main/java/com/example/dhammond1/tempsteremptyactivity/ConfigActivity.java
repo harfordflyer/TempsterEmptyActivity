@@ -139,12 +139,14 @@ public class ConfigActivity extends AppCompatActivity {
         {
             editor.putString("minTemp", ed_minTemp.getText().toString());
             itemsChanged = true;
+            pidItemsChanged = true;
         }
 
         if(!Objects.equals(config.getString("maxTemp", null),ed_maxTemp.getText().toString()))
         {
             editor.putString("maxTemp", ed_maxTemp.getText().toString());
             itemsChanged = true;
+            pidItemsChanged = true;
         }
 
         if(!Objects.equals(config.getString("fanSpeed",null),ed_fanSpeed.getText().toString()))
@@ -181,6 +183,7 @@ public class ConfigActivity extends AppCompatActivity {
         {
             editor.putString("sampleTime", ed_sampleTime.getText().toString());
             itemsChanged = true;
+            pidItemsChanged = true;
         }
 
         if(!Objects.equals(config.getBoolean("saveGraph", true), chk_saveGraph.isChecked()))

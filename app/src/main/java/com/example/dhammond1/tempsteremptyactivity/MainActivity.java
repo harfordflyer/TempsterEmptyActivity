@@ -45,49 +45,6 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences prefs;
     private boolean initialStart = true;
 
-   /* public void StartService()
-    {
-        scheduleFuture = databaseReadTask.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                DatabaseHandler DBHandler = dbHandler.getInstance(getApplicationContext());
-
-
-                //DataService.ReadTemperatures(sampleEntry, DBHandler);
-                DataService.ReadTemperatures();
-                int meatTemp = DataService.meatTemp;
-                int pitTemp = DataService.pitTemp;
-                //TemperatureEntry sampleEntry = new TemperatureEntry(null, null, null, null);
-                String date = DatabaseHandler.GetDateTime.GetDate(calendar);
-                String time = DatabaseHandler.GetDateTime.GetTime(calendar);
-                String pit = Integer.toString(pitTemp);
-                String meat = Integer.toString(meatTemp);
-                TemperatureEntry sampleEntry = new TemperatureEntry(date,time,pit,meat);
-                Log.d("pit temp: ", sampleEntry.getPitTemp());
-                Log.d("meat temp: ", sampleEntry.getMeatTemp());
-                Log.d("date: ", DatabaseHandler.GetDateTime.GetDate(calendar));
-                Log.d("time: ", DatabaseHandler.GetDateTime.GetTime(calendar));
-
-                if(saveGraphData) {
-                    addDataBaseEntry(sampleEntry, DatabaseHandler.getInstance(getApplicationContext()));
-                }
-
-
-                Bundle bundle = new Bundle();
-                bundle.putSerializable("entry", sampleEntry);
-                Message message = new Message();
-                message.setData(bundle);
-                runnableCallback.sendMessage(message);
-
-            }
-        }, 10000, 10000, TimeUnit.MILLISECONDS);
-
-    }*/
-
-   /* public static void StartIOIOService()
-    {
-
-    }*/
 
     public static void addDataBaseEntry(TemperatureEntry entry, DatabaseHandler handler)
     {
@@ -100,17 +57,6 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-   /* public static Handler runnableCallback = new Handler()
-    {
-        public void handleMessage(Message msg)
-        {
-            Bundle bundle = msg.getData();
-            TemperatureEntry entry = (TemperatureEntry)bundle.getSerializable("entry");
-            tv_PitText.setText(entry.getPitTemp());
-
-            tv_MeatText.setText(entry.getMeatTemp());
-        }
-    };*/
 
     @Override
     protected void onResume()
@@ -216,7 +162,7 @@ public class MainActivity extends AppCompatActivity {
 
                 mLastStopTime = SystemClock.elapsedRealtime();
                 StopIOIOService();
-                //To Do add StopService
+
             }
 
 
@@ -332,14 +278,23 @@ public class MainActivity extends AppCompatActivity {
         //before starting the timer, the program has some values to use.
 
         SharedPreferences.Editor editor = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE).edit();
-        editor.putString("minTemp","230");
-        editor.putString("maxTemp", "260" );
-        editor.putString("fanSpeed","100" );
-        editor.putString("kp", "5" );
-        editor.putString("ki","1" );
-        editor.putString("kd", "1");
-        editor.putString("sampleTime", "5");
-        editor.putBoolean("saveGraph", true);
+        restoredText = prefs.getString("minTemp", "230");
+        editor.putString("minTemp",restoredText);
+        restoredText = prefs.getString("maxTemp", "260");
+        editor.putString("maxTemp", restoredText);
+        restoredText = prefs.getString("fanSpeed", "100");
+        editor.putString("fanSpeed", restoredText);
+        restoredText = prefs.getString("kp", "5");
+        editor.putString("kp", restoredText);
+        restoredText = prefs.getString("ki", "0");
+        editor.putString("ki", restoredText);
+        restoredText = prefs.getString("kd", "0");
+        editor.putString("ki", restoredText);
+        restoredText = prefs.getString("sampleTime", "5");
+        editor.putString("sampleTime", restoredText);
+        boolean save = prefs.getBoolean("saveGraph", true);
+        editor.putBoolean("saveGraph", save);
+
         editor.apply();
     }
 }

@@ -47,6 +47,7 @@ public class IOIOLooperService extends IOIOService {
     private PID pid;
     private boolean pidLoopRunning;
     private double[] pidOutput;
+    private boolean STARTUP = true;
 
     public static float pitVoltage = 0;
     public static float meatVoltage = 0;
@@ -73,7 +74,7 @@ public class IOIOLooperService extends IOIOService {
         int[] temperatureValues = new int[2];
 
         //Initialize Timer Stuff
-        Timer t = new Timer();
+        Timer tempTimer = new Timer();
         TimerTask controlLoop = new TimerTask(){
 
             @Override
@@ -129,6 +130,22 @@ public class IOIOLooperService extends IOIOService {
             //Setup IOIO Pins
             led_ = ioio_.openDigitalOutput(IOIO.LED_PIN);
 
+            try
+            {
+                pwmOutput = ioio_.openPwmOutput(14,10);
+            }
+            catch(Exception e)
+            {
+                if(e instanceof IllegalArgumentException)
+                {
+                    Log.d("Pin open","IllegalArgumentException... pin probably open");
+                }
+                else
+                {
+                    throw new RuntimeException("Digital output pin failed");
+                }
+            }
+            pwmOutput.setDutyCycle(0.0f);
             isOutputOpen = false;
 
             //Increase thread priority
@@ -138,6 +155,10 @@ public class IOIOLooperService extends IOIOService {
             {
                 pid.Stop();
             }
+            //Set timer to execute 'controlLoop' after a xxms delay every xxms
+            Log.d("CONTROL LOOP TIMER:", "Scheduling control loop Timer");
+            tempTimer.schedule(controlLoop, initialWait, sampleTime);
+
             StartPIDTask();
 
             Log.d("LED TIMER:", "Scheduling LED Timer");
@@ -153,7 +174,7 @@ public class IOIOLooperService extends IOIOService {
             //output from the PID algorithm
             pidOutput = new double[1];
             //get values from intent
-            pid.SetControllerDirection(pid.REVERSE);
+            pid.SetControllerDirection(pid.DIRECT);
             pid.SetTunings(kp, ki, kd);
             pid.SetOutputLimits(0, 255);
             pid.SetSampleTime(sampleTime);
@@ -162,46 +183,20 @@ public class IOIOLooperService extends IOIOService {
             pid.SetMode(pid.AUTOMATIC);
             pid.SetContext(getApplicationContext());
             //starting with a 5 second compute loop... this could be a var in shared preferences
-            pid.StartPID(5);
+            pid.StartPID(sampleTime);
             pid.Setpoint = setPoint; //what are we trying to get to
             pid.Initialize();
 
-            //Set timer to execute 'controlLoop' after a xxms delay every xxms
+           /* //Set timer to execute 'controlLoop' after a xxms delay every xxms
             Log.d("CONTROL LOOP TIMER:", "Scheduling control loop Timer");
-            t.schedule(controlLoop, initialWait, sampleTime);
+            t.schedule(controlLoop, initialWait, sampleTime);*/
             isPIDRunning = true;
         }
 
         protected synchronized void controlLoop() throws ConnectionLostException,
                 InterruptedException {
 
-            //FOR TEST
-            isPIDRunning = false;
-            Log.d("CONTROL LOOP:", "starting control loop");
-            try
-            {
-                pwmOutput = ioio_.openPwmOutput(14,1000);
-            }
-            catch(Exception e)
-            {
-                if(e instanceof IllegalArgumentException)
-                {
-                    Log.d("Pin open","IllegalArgumentException... pin probably open");
-                }
-                else
-                {
-                    throw new RuntimeException("Digital output pin failed");
-                }
-            }
-
-            //if the PID is running, don't force the base on the transistor low
-            if(!isPIDRunning)
-            {
-
-                pwmOutput.setDutyCycle(0.0f);
-            }
-
-
+            Log.d("CONTROL_LOOP_SAMP_TIME",String.valueOf(sampleTime));
             //Lets take some temps
 
             pitInput = ioio_.openAnalogInput(pin45);
@@ -224,12 +219,8 @@ public class IOIOLooperService extends IOIOService {
             float pitTemp = computeTemperature(pitVoltage);
             temperatureValues[1] = ConvetKelvin2Farenheight(pitTemp);
 
-            //for now we will check for the delta of the input and min temps and pass that
-            //to the PID
-           // pid.Input = (double)temperatureValues[1];
-            //Log.d("PIDInputfromService", String.valueOf((double)temperatureValues[1]));
-            pid.Compute();
-            //Log.d("PIDOutputfromService", String.valueOf(pidOutput[0]));
+
+            //pid.Compute();
 
 
             //send the results back to the main acitivity
@@ -281,7 +272,6 @@ public class IOIOLooperService extends IOIOService {
 
         input.setBuffer(256);
         samples = input.available();
-       // Log.d("# pit sample voltages ", String.valueOf(samples));
 
         for (int i = 0; i < 256; i++) {
             totalVolts += input.getVoltageBuffered();
@@ -314,9 +304,6 @@ public class IOIOLooperService extends IOIOService {
 
         double T = 1.0 / t;
 
-        //Log.d( "SteinhartHart", "Calculated temp of " + T + " from voltage " + measuredVoltage );
-        //Log.d("kelvin_temp",Double.toString(T));
-        //Log.d("cel_temp", Double.toString(T - 273.25));
         double f_double = ((T- 273.25) * 9.0) / 5.0 + 32.0;
         int f_temp = (int) f_double;
         //Log.d("f_temp", Integer.toString(f_temp));
@@ -405,63 +392,5 @@ public class IOIOLooperService extends IOIOService {
     }
 
 
-/** indicates how to behave if the service is killed *//*
-
-    int mStartMode;
-
-    */
-/** interface for clients that bind *//*
-
-    IBinder mBinder;
-
-    */
-/** indicates whether onRebind should be used *//*
-
-    boolean mAllowRebind;
-
-    */
-/** Called when the service is being created. *//*
-
-    @Override
-    public void onCreate() {
-
-    }
-
-   */
-/* *//*
-*/
-/** The service is starting, due to a call to startService() *//*
-*/
-/*
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        return mStartMode;
-    }*//*
-
-
-
-    */
-/** Called when all clients have unbound with unbindService() *//*
-
-    @Override
-    public boolean onUnbind(Intent intent) {
-        return mAllowRebind;
-    }
-
-    */
-/** Called when a client is binding to the service with bindService()*//*
-
-    @Override
-    public void onRebind(Intent intent) {
-
-    }
-
-    */
-/** Called when The service is no longer used and is being destroyed *//*
-
-    @Override
-    public void onDestroy() {
-
-    }*/
 }
 
