@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.os.Handler;
 import android.os.Message;
 import android.os.SystemClock;
@@ -18,6 +20,7 @@ import android.widget.Chronometer;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.content.Context;
+import android.media.RingtoneManager;
 
 import java.util.Calendar;
 import java.util.Objects;
@@ -39,12 +42,15 @@ public class MainActivity extends AppCompatActivity {
     Future<?> scheduleFuture;
     Chronometer chrono;
     long mLastStopTime = 0;
+    long stoppedMilliseconds = 0;
+    String setTime = "00:00";
     private static final String CONFIG_NAME = "AppConfig";
     private boolean saveGraphData;
     public static Calendar calendar;
     private SharedPreferences prefs;
     private boolean initialStart = true;
-
+    AudioManager audioManager;
+    MediaPlayer mediaPlayer;
 
     public static void addDataBaseEntry(TemperatureEntry entry, DatabaseHandler handler)
     {
@@ -63,20 +69,47 @@ public class MainActivity extends AppCompatActivity {
     {
         super.onResume();
 
-        if(!initialStart)
-        {
-           /* long time = SystemClock.elapsedRealtime();
-            long intervalOnPause = (SystemClock.elapsedRealtime() +  mLastStopTime);
-            chrono.setBase(SystemClock.elapsedRealtime() + mLastStopTime);
-
-            chrono.start();*/
-        }
-        else
-        {
-            initialStart = false;
-        }
+        //if(!initialStart)
+       // {
+        //   RestoreChronoTime();
+       // }
+       // else
+       // {
+       //     initialStart = false;
+       // }
 
 
+    }
+
+    @Override
+    protected void onPause()
+    {
+        super.onPause();
+        SaveChronoTime();
+
+    }
+
+
+    protected void onSave()
+    {
+
+    }
+
+    @Override
+    protected void onStop()
+    {
+        super.onStop();
+    }
+
+
+    protected void onSavedInstanceState()
+    {
+        SaveChronoTime();
+    }
+
+    protected void onRestoreInstanceState()
+    {
+        RestoreChronoTime();
     }
 
     @Override
@@ -95,6 +128,9 @@ public class MainActivity extends AppCompatActivity {
         ed_targetTemp = (EditText)findViewById(R.id.ed_targetPit);
         chrono = (Chronometer)findViewById(R.id.chronometer);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+        audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        mediaPlayer = MediaPlayer.create(getApplicationContext(), RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
+
 
         //do i need to do something here on first start... I will need to set all defaults on first start
         prefs = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE);
@@ -106,9 +142,8 @@ public class MainActivity extends AppCompatActivity {
 
                 Intent intent = new Intent(MainActivity.this, ConfigActivity.class);
                 startActivityForResult(intent, 1);
-                // mLastStopTime = chrono.getBase() - SystemClock.elapsedRealtime();
+                SaveChronoTime();
 
-                // chrono.stop();
 
             }
         });
@@ -118,9 +153,8 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this, GraphActivity.class);
                 MainActivity.this.startActivity(intent);
+                SaveChronoTime();
 
-                mLastStopTime = chrono.getBase() - SystemClock.elapsedRealtime();
-                chrono.stop();
             }
         });
 
@@ -171,7 +205,47 @@ public class MainActivity extends AppCompatActivity {
         LocalBroadcastManager.getInstance(this).registerReceiver(receiver,
                 new IntentFilter("results"));
 
+        //set the clock to the correct time
+        chrono.setText(setTime);
+    }
 
+    private void SaveChronoTime()
+    {
+        stoppedMilliseconds = 0;
+        long base = chrono.getBase();
+        long elapse = SystemClock.elapsedRealtime();
+        mLastStopTime = SystemClock.elapsedRealtime();
+        String chronoText = chrono.getText().toString();
+        //get the time shown on the clock
+        String array[] = chronoText.split(":");
+        if (array.length == 2) {
+            stoppedMilliseconds = Integer.parseInt(array[0]) * 60 * 1000
+                    + Integer.parseInt(array[1]) * 1000;
+        } else if (array.length == 3) {
+            stoppedMilliseconds = Integer.parseInt(array[0]) * 60 * 60 * 1000
+                    + Integer.parseInt(array[1]) * 60 * 1000
+                    + Integer.parseInt(array[2]) * 1000;
+        }
+
+        chrono.stop();
+    }
+
+    private void RestoreChronoTime()
+    {
+        long timeOnResume = SystemClock.elapsedRealtime();
+        long intervalOnPause = (SystemClock.elapsedRealtime() +  mLastStopTime);
+        long timeToShow = intervalOnPause + stoppedMilliseconds;
+        long second = (timeToShow / 1000) % 60;
+        long minute = (timeToShow / (1000 * 60)) % 60;
+        long hour = (timeToShow / (1000 * 60 * 60)) % 24;
+
+        //set time needs to go in shared prefs
+        //along with the state of the running app
+        //String time = String.format("%02d:%02d:%02d:%d", hour, minute, second, timeToShow);
+        setTime = String.format("%02d:%02d:%02d:%d", hour, minute, second, timeToShow);
+        //chrono.setText(time);
+
+        //chrono.start();
     }
 
     private  void StartIOIOServiceLoop(SharedPreferences prefs)
@@ -230,8 +304,41 @@ public class MainActivity extends AppCompatActivity {
                 addDataBaseEntry(sampleEntry, DatabaseHandler.getInstance(getApplicationContext()));
             }
 
+            CheckForTempNotification(pit);
+
         }
     };
+
+    private void CheckForTempNotification(String pit)
+    {
+        boolean b_notify = false;
+        String minTemp = prefs.getString("minTemp", null);
+        String maxTemp = prefs.getString("maxTemp", null);
+        int targetTemp = Integer.parseInt(pit);
+        if(targetTemp < Integer.parseInt(minTemp))
+        {
+            b_notify = true;
+        }
+        else if(targetTemp < Integer.parseInt(maxTemp))
+        {
+            b_notify = true;
+        }
+
+        if(b_notify)
+        {
+
+            try {
+
+                mediaPlayer.setVolume((float) (audioManager.getStreamVolume(AudioManager.STREAM_NOTIFICATION) / 7.0),
+                        (float) (audioManager.getStreamVolume(AudioManager.STREAM_NOTIFICATION) / 7.0));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            mediaPlayer.start();
+        }
+    }
+
 
     //gets the value of save graph from the config activiyt
     public void onActivityResult(int requestCode, int resultCode, Intent data){

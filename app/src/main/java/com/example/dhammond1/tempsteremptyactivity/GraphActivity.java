@@ -36,6 +36,9 @@ public class GraphActivity extends AppCompatActivity {
         GraphView graph = (GraphView)findViewById(R.id.graph);
         graph.getViewport().setScrollable(true);
         graph.getViewport().setScalable(true);
+        graph.getViewport().setMinY(0);
+        graph.getViewport().setMaxY(350);
+        graph.getViewport().setYAxisBoundsManual(true);
 
         DatabaseHandler dbHandler = handler.getInstance(getApplicationContext());
         TemperatureEntry entry;
