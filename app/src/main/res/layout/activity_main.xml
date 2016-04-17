@@ -190,33 +190,49 @@
         <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:id="@+id/activitybutton"
+        android:id="@+id/configbutton"
         android:layout_below="@+id/linearMeat"
         android:orientation="horizontal">
 
         <Button
-            android:text="Config"
-            android:layout_weight="0.0"
-            android:layout_marginTop="40dp"
-            android:layout_marginLeft="40dp"
+            android:text="Configurations"
             android:id="@+id/configactivity"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/chartbutton"
+            android:layout_below="@+id/configbutton"
+            android:orientation="horizontal">
 
         <Button
             android:text="Chart"
-            android:layout_weight="0.0"
-            android:layout_marginTop="40dp"
-            android:layout_marginLeft="100dp"
             android:id="@+id/chartactivity"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content" />
 
-
-
-
     </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/notifybutton"
+            android:layout_below="@+id/chartbutton"
+            android:orientation="horizontal">
+
+            <Button
+                android:text="Notification Stop"
+                android:id="@+id/notifyStop"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
     </RelativeLayout>
+
     </ScrollView>
 
 </RelativeLayout>

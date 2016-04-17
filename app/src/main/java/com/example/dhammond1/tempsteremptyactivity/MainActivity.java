@@ -6,8 +6,6 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
-import android.os.Handler;
-import android.os.Message;
 import android.os.SystemClock;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
@@ -24,11 +22,8 @@ import android.media.RingtoneManager;
 
 import java.util.Calendar;
 import java.util.Objects;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
 
 
 public class MainActivity extends AppCompatActivity {
@@ -43,12 +38,13 @@ public class MainActivity extends AppCompatActivity {
     Chronometer chrono;
     long mLastStopTime = 0;
     long stoppedMilliseconds = 0;
+    boolean initialStart = true;
     String setTime = "00:00";
     private static final String CONFIG_NAME = "AppConfig";
     private boolean saveGraphData;
     public static Calendar calendar;
     private SharedPreferences prefs;
-    private boolean initialStart = true;
+    private SharedPreferences.Editor editor;
     AudioManager audioManager;
     MediaPlayer mediaPlayer;
 
@@ -58,25 +54,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    public void StopService()
-    {
-
-    }
-
 
     @Override
     protected void onResume()
     {
         super.onResume();
-
-        //if(!initialStart)
-       // {
-        //   RestoreChronoTime();
-       // }
-       // else
-       // {
-       //     initialStart = false;
-       // }
+        boolean start = prefs.getBoolean("initialStart",true);
+        if(!start)
+        {
+           RestoreChronoTime();
+        }
+        else
+        {
+            editor.putBoolean("initialStart",false);
+            editor.apply();
+        }
 
 
     }
@@ -85,7 +77,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause()
     {
         super.onPause();
-        SaveChronoTime();
+        Bundle bundle = new Bundle();
+        onSavedInstanceState(bundle);
 
     }
 
@@ -102,27 +95,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-    protected void onSavedInstanceState()
-    {
-        SaveChronoTime();
-    }
 
-    protected void onRestoreInstanceState()
-    {
-        RestoreChronoTime();
-    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         saveGraphData = true;
-        isServiceRunning = false;
+        //isServiceRunning = false;
         Button config = (Button)findViewById(R.id.configactivity);
         Button graph = (Button)findViewById(R.id.chartactivity);
         Button start = (Button)findViewById(R.id.chronStart);
         Button stop = (Button)findViewById(R.id.chronStop);
         Button set = (Button)findViewById(R.id.btn_setPit);
+        Button notifyStop = (Button)findViewById(R.id.notifyStop);
         tv_PitText = (TextView)findViewById(R.id.tx_tempPit);
         tv_MeatText = (TextView)findViewById(R.id.tx_tempMeat);
         ed_targetTemp = (EditText)findViewById(R.id.ed_targetPit);
@@ -134,7 +120,14 @@ public class MainActivity extends AppCompatActivity {
 
         //do i need to do something here on first start... I will need to set all defaults on first start
         prefs = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE);
-        SetPreferences(prefs);
+        boolean b = prefs.getBoolean("initialStart",true);
+        //if(prefs.getBoolean("initialStart",true))
+        //{
+            savePrefsToSharedPreferences();
+        //}
+        //savePrefsToSharedPreferences();
+
+
 
         config.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -158,6 +151,13 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        notifyStop.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v){
+                mediaPlayer.stop();
+            }
+        });
+
         set.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -172,16 +172,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 if (!isServiceRunning) {
-                    if (mLastStopTime == 0) {
-                        chrono.setBase(SystemClock.elapsedRealtime());
-                    } else {
-                        long intervalOnPause = (SystemClock.elapsedRealtime() - mLastStopTime);
-                        chrono.setBase(chrono.getBase() + intervalOnPause);
-                        // chrono.setFormat("00:00:00");
-                        // chrono.setText("01:00:00");
-                    }
+
                     StartIOIOServiceLoop(prefs);
                     isServiceRunning = true;
+
+                    chrono.setBase(SystemClock.elapsedRealtime());
                     chrono.start();
 
                 }
@@ -193,10 +188,12 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
 
                 chrono.stop();
-
-                mLastStopTime = SystemClock.elapsedRealtime();
                 StopIOIOService();
-
+                mLastStopTime = 0;
+                isServiceRunning = false;
+                editor.putLong("lastStopTime", mLastStopTime);
+                editor.putBoolean("isServiceRunning", isServiceRunning);
+                editor.apply();
             }
 
 
@@ -205,8 +202,31 @@ public class MainActivity extends AppCompatActivity {
         LocalBroadcastManager.getInstance(this).registerReceiver(receiver,
                 new IntentFilter("results"));
 
-        //set the clock to the correct time
-        chrono.setText(setTime);
+
+    }
+
+
+    protected void onSavedInstanceState(Bundle outState)
+    {
+        super.onSaveInstanceState(outState);
+        savePrefsToSharedPreferences();
+        SaveChronoTime();
+    }
+
+
+    protected void onRestoreInstanceState(Bundle savedInstance)
+    {
+        super.onRestoreInstanceState(savedInstance);
+       /* String restoredText = prefs.getString("targetPitTemp", null);
+        if(restoredText == null)
+        {
+            ed_targetTemp.setText("250", TextView.BufferType.EDITABLE);
+        }
+        else
+        {
+            ed_targetTemp.setText(restoredText, TextView.BufferType.EDITABLE);
+        }*/
+        RestoreChronoTime();
     }
 
     private void SaveChronoTime()
@@ -216,6 +236,9 @@ public class MainActivity extends AppCompatActivity {
         long elapse = SystemClock.elapsedRealtime();
         mLastStopTime = SystemClock.elapsedRealtime();
         String chronoText = chrono.getText().toString();
+        //put the text in the prefs
+        setTime = chronoText;
+        //editor.putString("chronoTime", chronoText);
         //get the time shown on the clock
         String array[] = chronoText.split(":");
         if (array.length == 2) {
@@ -227,22 +250,38 @@ public class MainActivity extends AppCompatActivity {
                     + Integer.parseInt(array[2]) * 1000;
         }
 
+        editor.putLong("stoppedMilliseconds", stoppedMilliseconds);
+        editor.putLong("lastStopTime", mLastStopTime);
+        editor.apply();
         chrono.stop();
     }
 
     private void RestoreChronoTime()
     {
-        long timeOnResume = SystemClock.elapsedRealtime();
-        long intervalOnPause = (SystemClock.elapsedRealtime() +  mLastStopTime);
-        long timeToShow = intervalOnPause + stoppedMilliseconds;
-        long second = (timeToShow / 1000) % 60;
-        long minute = (timeToShow / (1000 * 60)) % 60;
-        long hour = (timeToShow / (1000 * 60 * 60)) % 24;
+        stoppedMilliseconds = prefs.getLong("stoppedMilliseconds", 0L);
+        mLastStopTime = prefs.getLong("lastStopTime", 0L);
 
-        //set time needs to go in shared prefs
-        //along with the state of the running app
-        //String time = String.format("%02d:%02d:%02d:%d", hour, minute, second, timeToShow);
-        setTime = String.format("%02d:%02d:%02d:%d", hour, minute, second, timeToShow);
+        if(stoppedMilliseconds != 0) {
+            long timeOnResume = SystemClock.elapsedRealtime();
+            long intervalOnPause = (SystemClock.elapsedRealtime() + mLastStopTime);
+            long timeToShow = intervalOnPause + stoppedMilliseconds;
+            long second = (timeToShow / 1000) % 60;
+            long minute = (timeToShow / (1000 * 60)) % 60;
+            long hour = (timeToShow / (1000 * 60 * 60)) % 24;
+
+            //set time needs to go in shared prefs
+            //along with the state of the running app
+            //String time = String.format("%02d:%02d:%02d:%d", hour, minute, second, timeToShow);
+            setTime = String.format("%02d:%02d:%02d:%d", hour, minute, second, timeToShow);
+            editor.putString("chronoTime", setTime);
+            editor.apply();
+        }
+        else
+        {
+            editor.putString("chronoTime", setTime);
+            editor.apply();
+        }
+
         //chrono.setText(time);
 
         //chrono.start();
@@ -370,7 +409,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void SetPreferences(SharedPreferences prefs)
+
+    private void savePrefsToSharedPreferences()
     {
         String restoredText = prefs.getString("targetPitTemp", null);
         if(restoredText == null)
@@ -384,7 +424,7 @@ public class MainActivity extends AppCompatActivity {
         //put some default values in the prefs so if the user doesn't visit the preferences
         //before starting the timer, the program has some values to use.
 
-        SharedPreferences.Editor editor = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE).edit();
+        editor = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE).edit();
         restoredText = prefs.getString("minTemp", "230");
         editor.putString("minTemp",restoredText);
         restoredText = prefs.getString("maxTemp", "260");
@@ -396,12 +436,21 @@ public class MainActivity extends AppCompatActivity {
         restoredText = prefs.getString("ki", "0");
         editor.putString("ki", restoredText);
         restoredText = prefs.getString("kd", "0");
-        editor.putString("ki", restoredText);
+        editor.putString("kd", restoredText);
         restoredText = prefs.getString("sampleTime", "5");
         editor.putString("sampleTime", restoredText);
-        boolean save = prefs.getBoolean("saveGraph", true);
-        editor.putBoolean("saveGraph", save);
 
+        boolean saveBoolean = prefs.getBoolean("saveGraph", true);
+        editor.putBoolean("saveGraph", saveBoolean);
+        saveBoolean = prefs.getBoolean("isRunning", isServiceRunning);
+        editor.putBoolean("isRunning", saveBoolean);
+        saveBoolean = prefs.getBoolean("initialStart", true);
+        editor.putBoolean("initialStart", saveBoolean);
+
+        long restoredLong = prefs.getLong("stoppedMilliseconds", stoppedMilliseconds);
+        editor.putLong("stoppedMilliseconds", restoredLong);
+        restoredLong = prefs.getLong("lastStopTime", mLastStopTime);
+        editor.putLong("lastStopTime", restoredLong);
         editor.apply();
     }
 }
