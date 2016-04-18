@@ -120,7 +120,11 @@ public class IOIOLooperService extends IOIOService {
         {
             controlLoop.cancel();
             ledLoop.cancel();
-            pid.Stop();
+            if(pid != null)
+            {
+                pid.Stop();
+            }
+
         }
 
         //IOIO Setup Method
