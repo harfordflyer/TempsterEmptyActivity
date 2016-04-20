@@ -22,6 +22,8 @@ import android.media.RingtoneManager;
 
 import java.util.Calendar;
 import java.util.Objects;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -39,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
     long mLastStopTime = 0;
     long stoppedMilliseconds = 0;
     boolean initialStart = true;
+    boolean notificationTaskDone = true;
     String setTime = "00:00";
     private static final String CONFIG_NAME = "AppConfig";
     private boolean saveGraphData;
@@ -47,6 +50,15 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences.Editor editor;
     AudioManager audioManager;
     MediaPlayer mediaPlayer;
+
+    Timer globalnotificationTimer;
+    TimerTask notificationLoop; /*//*= new TimerTask() {
+       /* @Override
+        public void run() {
+            CheckForTempNotification();
+        }
+    };*//*
+*/
 
     public static void addDataBaseEntry(TemperatureEntry entry, DatabaseHandler handler)
     {
@@ -70,8 +82,8 @@ public class MainActivity extends AppCompatActivity {
         }
         else
         {
-            Log.d("RESUME_INITSTART",setTime);
-            chrono.setText(setTime);
+            Log.d("RESUME_INITSTART", setTime);
+            //chrono.setText(setTime);
             editor.putBoolean("initialStart",false);
             editor.apply();
         }
@@ -112,7 +124,7 @@ public class MainActivity extends AppCompatActivity {
         Button start = (Button)findViewById(R.id.chronStart);
         Button stop = (Button)findViewById(R.id.chronStop);
         Button set = (Button)findViewById(R.id.btn_setPit);
-        Button notifyStop = (Button)findViewById(R.id.notifyStop);
+        final Button notifyStop = (Button)findViewById(R.id.notifyStop);
         tv_PitText = (TextView)findViewById(R.id.tx_tempPit);
         tv_MeatText = (TextView)findViewById(R.id.tx_tempMeat);
         ed_targetTemp = (EditText)findViewById(R.id.ed_targetPit);
@@ -159,7 +171,24 @@ public class MainActivity extends AppCompatActivity {
         notifyStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v){
-                mediaPlayer.stop();
+                String text = null;
+                if(notifyStop.getText().toString().equals("Notification Stop"))
+                {
+
+                    globalnotificationTimer.cancel();
+
+                    text = "Notification Start";
+
+                }
+                else
+                {
+                    Timer timer = StartNotificationLoopTimer();
+                    globalnotificationTimer = timer;
+                    timer.schedule(notificationLoop, 0, 60000);
+                    text = "Notification Stop";
+                }
+                notifyStop.setText(text);
+
             }
         });
 
@@ -184,13 +213,16 @@ public class MainActivity extends AppCompatActivity {
                     editor.apply();
 
 
-                }
-                else
-                {
+                } else {
                     RestoreChronoTime();
                 }
-
+                if (initialStart) {
+                    chrono.setText(setTime);
+                    Log.d("CHRONOTIME", chrono.getText().toString());
+                }
+                chrono.setBase(SystemClock.elapsedRealtime());
                 chrono.start();
+
             }
         });
 
@@ -214,6 +246,21 @@ public class MainActivity extends AppCompatActivity {
         LocalBroadcastManager.getInstance(this).registerReceiver(receiver,
                 new IntentFilter("results"));
 
+        globalnotificationTimer = StartNotificationLoopTimer();
+        globalnotificationTimer.schedule(notificationLoop,0, 60000);
+    }
+
+
+    protected Timer StartNotificationLoopTimer()
+    {
+        Timer notificationTimer = new Timer();
+        notificationLoop = new TimerTask() {
+            @Override
+            public void run() {
+                CheckForTempNotification();
+            }
+        };
+        return notificationTimer;
 
     }
 
@@ -258,7 +305,7 @@ public class MainActivity extends AppCompatActivity {
         editor.putLong("stoppedMilliseconds", stoppedMilliseconds);
         Log.d("MILLISECONDS", String.valueOf(stoppedMilliseconds));
         editor.putLong("lastStopTime", mLastStopTime);
-        Log.d("LASTSTOPTIME",String.valueOf(mLastStopTime));
+        Log.d("LASTSTOPTIME", String.valueOf(mLastStopTime));
         editor.apply();
 
     }
@@ -269,7 +316,7 @@ public class MainActivity extends AppCompatActivity {
         mLastStopTime = prefs.getLong("lastStopTime", 0L);
         long seconds = SystemClock.elapsedRealtime() -  mLastStopTime;
         long timetodisplay = seconds + stoppedMilliseconds;
-        Log.d("TIMETODISPLAY",String.valueOf(timetodisplay));
+        Log.d("TIMETODISPLAY", String.valueOf(timetodisplay));
         Log.d("RESTORE_millis", String.valueOf(stoppedMilliseconds));
         if(stoppedMilliseconds != 0) {
             long second = (timetodisplay / 1000) % 60;
@@ -295,9 +342,9 @@ public class MainActivity extends AppCompatActivity {
             editor.putString("chronoTime", setTime);
             editor.apply();
         }
-        Log.d("SETTINGTIME",setTime);
+        Log.d("SETTINGTIME", setTime);
         chrono.setText(setTime);
-        chrono.setBase(SystemClock.elapsedRealtime()- timetodisplay);
+        chrono.setBase(SystemClock.elapsedRealtime() - timetodisplay);
 
     }
 
@@ -310,6 +357,8 @@ public class MainActivity extends AppCompatActivity {
         String kp = prefs.getString("kp", null);
         String ki = prefs.getString("ki", null);
         String kd = prefs.getString("kd", null);
+
+        String max = prefs.getString("maxTemp", null);
         String targetTemp = null;
         targetTemp = prefs.getString("targetPitTemp", null);
 
@@ -324,6 +373,8 @@ public class MainActivity extends AppCompatActivity {
         intent.putExtra("ki", ki);
         intent.putExtra("kd", kd);
         intent.putExtra("targetPitTemp",targetTemp);
+
+        intent.putExtra("maxTemp", max);
         startService(intent);
     }
 
@@ -357,17 +408,25 @@ public class MainActivity extends AppCompatActivity {
                 addDataBaseEntry(sampleEntry, DatabaseHandler.getInstance(getApplicationContext()));
             }
 
-            CheckForTempNotification(pit);
 
         }
     };
 
-    private void CheckForTempNotification(String pit)
+    private void CheckForTempNotification()
     {
+        String pit = tv_PitText.getText().toString();
         boolean b_notify = false;
         String minTemp = prefs.getString("minTemp", null);
         String maxTemp = prefs.getString("maxTemp", null);
-        int targetTemp = Integer.parseInt(pit);
+        int targetTemp = 0;
+        try {
+            targetTemp = Integer.parseInt(pit);
+        }
+        catch(Exception e)
+        {
+            return;
+        }
+
         if(targetTemp < Integer.parseInt(minTemp))
         {
             b_notify = true;
@@ -391,6 +450,8 @@ public class MainActivity extends AppCompatActivity {
             mediaPlayer.start();
         }
     }
+
+
 
 
     //gets the value of save graph from the config activiyt

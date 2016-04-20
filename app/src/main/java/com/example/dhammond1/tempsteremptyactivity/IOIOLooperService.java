@@ -34,7 +34,7 @@ public class IOIOLooperService extends IOIOService {
     private static final String CONFIG_NAME = "AppConfig";
 
     int sampleTime;
-    int minTemp;
+    int minTemp,maxTemp;
     int setPoint;
     int kp, ki, kd;
     int initialWait = 15000;
@@ -344,6 +344,8 @@ public class IOIOLooperService extends IOIOService {
         sampleTime = Integer.parseInt(sample) * 1000;
         String minT = intent.getStringExtra("minTemp");
         minTemp = Integer.parseInt(minT);
+        String maxT = intent.getStringExtra("maxTemp");
+        maxTemp = Integer.parseInt(maxT);
         String k = intent.getStringExtra("kp");
         kp = Integer.parseInt(k);
         k = intent.getStringExtra("ki");

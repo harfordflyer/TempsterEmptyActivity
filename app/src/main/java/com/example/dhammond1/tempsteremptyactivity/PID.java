@@ -16,7 +16,7 @@ public class PID {
     /*working variables*/
     Context m_context;
     long lastTime;
-    public double Input, Output, Setpoint;
+    public double Input, pwmOutput, Setpoint;
     double ITerm, lastInput;
     double kp, ki, kd;
     long SampleTime = 1000; //1 sec
@@ -113,6 +113,12 @@ public class PID {
                 if (timeChange >= SampleTime) {
       /*Compute all the working error variables*/
                     double error = Setpoint - Input;
+                    if(error < 0)
+                    {
+                        pwmOutput = 0;
+                        pidOutput.pidWrite(pwmOutput);
+                        return;
+                    }
                     if(controllDirection == DIRECT)
                     {
                         error = Math.abs(error);
@@ -125,7 +131,7 @@ public class PID {
                         ITerm = outMin;
                     double dInput = (Input - lastInput);
 
-      /*Compute PID Output*/
+                    /*Compute PID Output*/
                     Log.d("setpoint:", String.valueOf((double)Setpoint));
                     Log.d("input:", String.valueOf((double)Input));
                     Log.d("kp", String.valueOf((double)kp));
@@ -133,16 +139,19 @@ public class PID {
                     Log.d("ITerm:", String.valueOf((double)ITerm));
                     Log.d("lastInput:", String.valueOf((double)lastInput));
                     Log.d("dInput:", String.valueOf((double)dInput));
-                    Output = kp * error + ITerm - kd * dInput;
-                    if (Output > outMax)
-                        Output = outMax;
-                    else if (Output < outMin)
-                        Output = outMin;
-                    Log.d("PIDOutput", String.valueOf(Output));
-      /*Remember some variables for next time*/
+                    pwmOutput = kp * error + ITerm - kd * dInput;
+
+                    if (pwmOutput > outMax)
+                        pwmOutput = outMax;
+
+                    else if (pwmOutput < outMin)
+                        pwmOutput = outMin;
+
+                    Log.d("PIDOutput", String.valueOf(pwmOutput));
+                    /*Remember some variables for next time*/
                     lastInput = Input;
                     lastTime = now;
-                    pidOutput.pidWrite(Output);
+                    pidOutput.pidWrite(pwmOutput);
                     /*//send the results back to the main acitivity
                     Intent intent = new Intent("results");
                     intent.putExtra("output", Output);
@@ -198,8 +207,8 @@ public class PID {
         outMin = Min;
         outMax = Max;
 
-        if(Output > outMax) Output = outMax;
-        else if(Output < outMin) Output = outMin;
+        if(pwmOutput > outMax) pwmOutput = outMax;
+        else if(pwmOutput < outMin) pwmOutput = outMin;
 
         if(ITerm> outMax) ITerm= outMax;
         else if(ITerm< outMin) ITerm= outMin;
@@ -218,7 +227,7 @@ public class PID {
     public void Initialize()
     {
         lastInput = Input;
-        ITerm = Output;
+        ITerm = pwmOutput;
         if(ITerm > outMax) {
             ITerm = outMax;
         }
