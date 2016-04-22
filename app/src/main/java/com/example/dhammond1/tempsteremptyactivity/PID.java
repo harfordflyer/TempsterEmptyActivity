@@ -152,14 +152,7 @@ public class PID {
                     lastInput = Input;
                     lastTime = now;
                     pidOutput.pidWrite(pwmOutput);
-                    /*//send the results back to the main acitivity
-                    Intent intent = new Intent("results");
-                    intent.putExtra("output", Output);
-                    m_context.sendBroadcast(intent);
-                    LocalBroadcastManager.getInstance(m_context.getApplicationContext()).sendBroadcast(intent);*/
 
-                   // Log.d("InputPIDClass", String.valueOf(Input));
-                   // Log.d("OutputPIDClass", String.valueOf(Output));
                 }
             }
         }
@@ -183,9 +176,7 @@ public class PID {
             ki = -ki;
             kd = -kd;
             Log.d("kp sign is; ", String.valueOf((double)kp));
-            /*kp = (0 - kp);
-            ki = (0 - ki);
-            kd = (0 - kd);*/
+
         }
     }
 

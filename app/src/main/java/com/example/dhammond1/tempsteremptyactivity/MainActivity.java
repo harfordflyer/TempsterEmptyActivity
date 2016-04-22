@@ -41,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
     long mLastStopTime = 0;
     long stoppedMilliseconds = 0;
     boolean initialStart = true;
-    boolean notificationTaskDone = true;
+    boolean notificationOn = true;
     String setTime = "00:00";
     private static final String CONFIG_NAME = "AppConfig";
     private boolean saveGraphData;
@@ -66,7 +66,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-
+    //onResume method call used to make sure the chronometer starts correctly
     @Override
     protected void onResume()
     {
@@ -83,12 +83,9 @@ public class MainActivity extends AppCompatActivity {
         else
         {
             Log.d("RESUME_INITSTART", setTime);
-            //chrono.setText(setTime);
             editor.putBoolean("initialStart",false);
             editor.apply();
         }
-
-
     }
 
     @Override
@@ -108,8 +105,6 @@ public class MainActivity extends AppCompatActivity {
         Log.d("ON STOP", "onStop called");
         super.onStop();
     }
-
-
 
 
     @Override
@@ -172,23 +167,26 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v){
                 String text = null;
-                if(notifyStop.getText().toString().equals("Notification Stop"))
+                if(notifyStop.getText().toString().equals("Notification On"))
                 {
 
                     globalnotificationTimer.cancel();
-
-                    text = "Notification Start";
+                    notificationOn = false;
+                    editor.putBoolean("notificationOn", false);
+                    text = "Notification Off";
 
                 }
                 else
                 {
                     Timer timer = StartNotificationLoopTimer();
                     globalnotificationTimer = timer;
+                    notificationOn = true;
+                    editor.putBoolean("notificationOn", true);
                     timer.schedule(notificationLoop, 0, 60000);
-                    text = "Notification Stop";
+                    text = "Notification On";
                 }
                 notifyStop.setText(text);
-
+                editor.apply();
             }
         });
 
@@ -243,6 +241,8 @@ public class MainActivity extends AppCompatActivity {
 
         });
 
+
+
         LocalBroadcastManager.getInstance(this).registerReceiver(receiver,
                 new IntentFilter("results"));
 
@@ -253,6 +253,16 @@ public class MainActivity extends AppCompatActivity {
 
     protected Timer StartNotificationLoopTimer()
     {
+        Button notify = (Button)findViewById(R.id.notifyStop);
+        if(prefs.getBoolean("notificationOn",notificationOn))
+        {
+            notify.setText("Notification On");
+        }
+        else
+        {
+            notify.setText("Notification Off");
+        }
+
         Timer notificationTimer = new Timer();
         notificationLoop = new TimerTask() {
             @Override
@@ -284,13 +294,8 @@ public class MainActivity extends AppCompatActivity {
     private void SaveChronoTime()
     {
         stoppedMilliseconds = 0;
-        //long base = chrono.getBase();
-       // long elapse = SystemClock.elapsedRealtime();
         mLastStopTime = SystemClock.elapsedRealtime();
         String chronoText = chrono.getText().toString();
-        //put the text in the prefs
-        //setTime = chronoText;
-        //editor.putString("chronoTime", chronoText);
         //get the time shown on the clock
         String array[] = chronoText.split(":");
         if (array.length == 2) {
@@ -521,6 +526,8 @@ public class MainActivity extends AppCompatActivity {
         editor.putBoolean("isRunning", saveBoolean);
         saveBoolean = prefs.getBoolean("initialStart", true);
         editor.putBoolean("initialStart", saveBoolean);
+        saveBoolean = prefs.getBoolean("notificationOn", notificationOn);
+        editor.putBoolean("notificationOn",saveBoolean);
 
         long restoredLong = prefs.getLong("stoppedMilliseconds", stoppedMilliseconds);
         editor.putLong("stoppedMilliseconds", restoredLong);

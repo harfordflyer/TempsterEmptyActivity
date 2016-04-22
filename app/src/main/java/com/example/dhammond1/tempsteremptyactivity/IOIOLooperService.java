@@ -191,9 +191,8 @@ public class IOIOLooperService extends IOIOService {
             pid.Setpoint = setPoint; //what are we trying to get to
             pid.Initialize();
 
-           /* //Set timer to execute 'controlLoop' after a xxms delay every xxms
-            Log.d("CONTROL LOOP TIMER:", "Scheduling control loop Timer");
-            t.schedule(controlLoop, initialWait, sampleTime);*/
+            //Set timer to execute 'controlLoop' after a xxms delay every xxms
+
             isPIDRunning = true;
         }
 
@@ -206,26 +205,22 @@ public class IOIOLooperService extends IOIOService {
             pitInput = ioio_.openAnalogInput(pin45);
             pitVoltage = GetVoltagesFromAnalogProbe(pitInput);
 
-            //Log.d("avg voltage on pit ", String.valueOf(pitVoltage));
+
             pitInput.close();
 
             meatInput = ioio_.openAnalogInput(pin46);
             meatVoltage = GetVoltagesFromAnalogProbe(meatInput);
 
-          //  Log.d("avg voltage on meat ", String.valueOf(meatVoltage));
+
             meatInput.close();
 
             //convert the voltages to real temps
-            //int[] values = new int[2];
+
             float meatTemp = computeTemperature(meatVoltage);
             temperatureValues[0] = ConvetKelvin2Farenheight(meatTemp);
 
             float pitTemp = computeTemperature(pitVoltage);
             temperatureValues[1] = ConvetKelvin2Farenheight(pitTemp);
-
-
-            //pid.Compute();
-
 
             //send the results back to the main acitivity
             Intent intent = new Intent("results");
@@ -272,8 +267,6 @@ public class IOIOLooperService extends IOIOService {
         double averageVolts = 0;
         double totalVolts = 0;
         int samples = 0;
-
-
         input.setBuffer(256);
         samples = input.available();
 
@@ -310,7 +303,7 @@ public class IOIOLooperService extends IOIOService {
 
         double f_double = ((T- 273.25) * 9.0) / 5.0 + 32.0;
         int f_temp = (int) f_double;
-        //Log.d("f_temp", Integer.toString(f_temp));
+
         return (float)T;
     }
 
