@@ -21,7 +21,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
     private static DatabaseHandler instance;
 
     // Database Version
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
 
     // Database Name
     private static final String DATABASE_NAME = "temperatureEntry.db";
@@ -72,10 +72,10 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         return "DROP TABLE IF EXISTS " + TABLE_ENTRIES;
     }
 
-    public String DeleteConfigTable()
+    /*public String DeleteConfigTable()
     {
         return "DROP TABLE IF EXISTS" + TABLE_CONFIG;
-    }
+    }*/
 
     public String CreateTableString()
     {
@@ -87,7 +87,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         return SQL_CREATE_ENTRIES;
     }
 
-    public String CreateConfigTableString()
+    /*public String CreateConfigTableString()
     {
         final String SQL_CREATE_ENTRIES = "CREATE TABLE " + TABLE_CONFIG + "("
                 + CONFIG_ID + " INTEGER PRIMARY KEY,"
@@ -102,7 +102,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
                 + CONFIG_SAMPLE_TIME   + " TEXT" + ")";
         return SQL_CREATE_ENTRIES;
     }
-
+*/
     public boolean DoesDatabaseExist(Context context, String dbName)
     {
         File dbFile = context.getDatabasePath(dbName);
@@ -118,22 +118,28 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             db.execSQL(DeleteEntriesTable());
         }
 
-        if(DoesDatabaseExist(_context, TABLE_CONFIG))
+  /*      if(DoesDatabaseExist(_context, TABLE_CONFIG))
         {
             db.execSQL(DeleteConfigTable());
-        }
+        }*/
 
         db.execSQL(CreateTableString());
-        db.execSQL(CreateConfigTableString());
+        //db.execSQL(CreateConfigTableString());
 
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
         // Drop older table if existed
-        db.execSQL(DeleteEntriesTable());
-        db.execSQL(DeleteConfigTable());
+        try {
+            db.execSQL(DeleteEntriesTable());
+          //  db.execSQL(DeleteConfigTable());
 
+        }
+       catch(Exception e)
+       {
+           Log.d("DATBASE_FAILURE","Failure on upgrade");
+       }
         // Create tables again
         onCreate(db);
     }
@@ -158,7 +164,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         db.close();
     }
 
-    public void addConfigEntry(ConfigEntity entry)
+    /*public void addConfigEntry(ConfigEntity entry)
     {
         SQLiteDatabase db = null;
         try {
@@ -185,7 +191,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         catch (Exception ex){
             Log.d("Save config", ex.getMessage());
         }
-    }
+    }*/
        /* public TemperatureEntry getEntry(int id)
         {
             SQLiteDatabase db = this.getReadableDatabase();
@@ -228,7 +234,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
         String selectQuery = "SELECT  * FROM " + TABLE_ENTRIES  + " WHERE " + COLUMN_DATE + " = \"" + date + "\"";
 
         SQLiteDatabase db = this.getWritableDatabase();
-        //Cursor cursor = db.rawQuery(selectQuery, new String[]{date});
+
         Cursor cursor = null;
         try {
             cursor = db.rawQuery(selectQuery, null);
@@ -251,7 +257,7 @@ public class DatabaseHandler extends SQLiteOpenHelper {
             } while (cursor.moveToNext());
         }
         cursor.close();
-        // return contact list
+
         return listEntry;
     }
 

@@ -111,6 +111,7 @@
             android:layout_gravity="bottom"
             android:focusable="true"
             android:inputType="number"
+            android:visibility="invisible"
             android:maxLength="3"/>
 
         <TextView
@@ -119,7 +120,7 @@
             android:layout_gravity="bottom"
             android:text="Fan Speed"
             android:textSize="@dimen/text_sizeEdit"
-
+            android:visibility="invisible"
             android:layout_weight="1.0"
             />
     </LinearLayout>

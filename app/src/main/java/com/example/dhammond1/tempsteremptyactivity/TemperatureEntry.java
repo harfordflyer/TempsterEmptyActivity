@@ -8,7 +8,7 @@ import java.io.Serializable;
 public class TemperatureEntry implements Serializable {
     //private vars
     int _id;
-    //Calendar.getTime()
+
     String _date;
     String _time;
     String _pitTemp;
@@ -53,10 +53,7 @@ public class TemperatureEntry implements Serializable {
         this._time = time;
     }
 
-    public String getPitTemp()
-    {
-        return this._pitTemp;
-    }
+    public String getPitTemp() { return this._pitTemp; }
 
     public void setPitTemp(String pitTemp)
     {

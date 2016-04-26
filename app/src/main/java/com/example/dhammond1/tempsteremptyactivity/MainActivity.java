@@ -19,9 +19,11 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.content.Context;
 import android.media.RingtoneManager;
+import android.widget.Toast;
 
 import java.util.Calendar;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.Future;
@@ -34,6 +36,7 @@ public class MainActivity extends AppCompatActivity {
     public static TextView tv_PitText;
     public static TextView tv_MeatText;
     public static EditText ed_targetTemp;
+    public static TextView tv_Timer;
     DatabaseHandler dbHandler;
     ScheduledExecutorService databaseReadTask;
     Future<?> scheduleFuture;
@@ -123,6 +126,7 @@ public class MainActivity extends AppCompatActivity {
         tv_PitText = (TextView)findViewById(R.id.tx_tempPit);
         tv_MeatText = (TextView)findViewById(R.id.tx_tempMeat);
         ed_targetTemp = (EditText)findViewById(R.id.ed_targetPit);
+        tv_Timer = (TextView)findViewById(R.id.timerView);
         chrono = (Chronometer)findViewById(R.id.chronometer);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
@@ -206,6 +210,7 @@ public class MainActivity extends AppCompatActivity {
                 if (!isServiceRunning) {
 
                     StartIOIOServiceLoop(prefs);
+                    startService(new Intent(MainActivity.this, SessionTimerService.class));
                     isServiceRunning = true;
                     editor.putBoolean("isServiceRunning", true);
                     editor.apply();
@@ -221,6 +226,25 @@ public class MainActivity extends AppCompatActivity {
                 chrono.setBase(SystemClock.elapsedRealtime());
                 chrono.start();
 
+                //fortest
+                /*for(int i = 0; i < 1000; i++) {
+                    int[] vv = new int[2];
+                    Random ran = new Random();
+                    vv[0] = ran.nextInt(20) + 100;
+                    ran = new Random();
+                    vv[1] = ran.nextInt(20) + 120;
+                    FormatAndSaveTemperatureResponse(vv);
+                    for(int ii = 0; ii < 500; ii++);*/
+                //Toast.makeText(getApplicationContext(),"Saving fake data",Toast.LENGTH_LONG);
+                   /* try
+                    {
+                        Thread.sleep(1000L);
+                    }
+                    catch (Exception e)
+                    {
+
+                    }*/
+                //}
             }
         });
 
@@ -230,6 +254,7 @@ public class MainActivity extends AppCompatActivity {
 
                 chrono.stop();
                 StopIOIOService();
+                stopService(new Intent(MainActivity.this, SessionTimerService.class));
                 mLastStopTime = 0;
                 isServiceRunning = false;
                 editor.putLong("lastStopTime", mLastStopTime);
@@ -242,9 +267,9 @@ public class MainActivity extends AppCompatActivity {
         });
 
 
-
-        LocalBroadcastManager.getInstance(this).registerReceiver(receiver,
-                new IntentFilter("results"));
+        IntentFilter filter = new IntentFilter("results");
+        filter.addAction("time");
+        LocalBroadcastManager.getInstance(this).registerReceiver(receiver, filter);
 
         globalnotificationTimer = StartNotificationLoopTimer();
         globalnotificationTimer.schedule(notificationLoop,0, 60000);
@@ -287,7 +312,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onRestoreInstanceState(Bundle savedInstance)
     {
         super.onRestoreInstanceState(savedInstance);
-        Log.d("ON RESTORE","OnRestoreSavedInstanceState");
+        Log.d("ON RESTORE", "OnRestoreSavedInstanceState");
         RestoreChronoTime();
     }
 
@@ -353,6 +378,8 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+
+
     private  void StartIOIOServiceLoop(SharedPreferences prefs)
     {
         //IOIO service
@@ -390,32 +417,51 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    //need to put in handlers for onDestroy and onResume
+
     private BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            int[] values = intent.getIntArrayExtra("temps");
-            tv_MeatText.setText(String.valueOf(values[0]));
-            tv_PitText.setText(String.valueOf(values[1]));
-            calendar = Calendar.getInstance();
-            DatabaseHandler DBHandler = dbHandler.getInstance(getApplicationContext());
-            String date = DatabaseHandler.GetDateTime.GetDate(calendar);
-            String time = DatabaseHandler.GetDateTime.GetTime(calendar);
-            String pit = Integer.toString(values[0]);
-            String meat = Integer.toString(values[1]);
-            TemperatureEntry sampleEntry = new TemperatureEntry(date,time,pit,meat);
-            Log.d("pit temp: ", sampleEntry.getPitTemp());
-            Log.d("meat temp: ", sampleEntry.getMeatTemp());
-            Log.d("date: ", DatabaseHandler.GetDateTime.GetDate(calendar));
-            Log.d("time: ", DatabaseHandler.GetDateTime.GetTime(calendar));
-
-            if(saveGraphData) {
-                addDataBaseEntry(sampleEntry, DatabaseHandler.getInstance(getApplicationContext()));
+            String action = intent.getAction();
+            switch (action)
+            {
+                case "results":
+                {
+                    int[] values = intent.getIntArrayExtra("temps");
+                    tv_MeatText.setText(String.valueOf(values[0]));
+                    tv_PitText.setText(String.valueOf(values[1]));
+                    if(saveGraphData)
+                    {
+                        FormatAndSaveTemperatureResponse(values);
+                    }
+                    break;
+                }
+                case "time":
+                {
+                    String time = intent.getStringExtra("timeString");
+                    tv_Timer.setText(time);
+                    break;
+                }
             }
-
 
         }
     };
+
+    private void FormatAndSaveTemperatureResponse(int[] values)
+    {
+        DatabaseHandler DBHandler = dbHandler.getInstance(getApplicationContext());
+        calendar = Calendar.getInstance();
+        String date = DatabaseHandler.GetDateTime.GetDate(calendar);
+        String time = DatabaseHandler.GetDateTime.GetTime(calendar);
+        String pit = Integer.toString(values[0]);
+        String meat = Integer.toString(values[1]);
+        TemperatureEntry sampleEntry = new TemperatureEntry(date,time,pit,meat);
+        Log.d("pit temp: ", sampleEntry.getPitTemp());
+        Log.d("meat temp: ", sampleEntry.getMeatTemp());
+        Log.d("date: ", DatabaseHandler.GetDateTime.GetDate(calendar));
+        Log.d("time: ", DatabaseHandler.GetDateTime.GetTime(calendar));
+
+        addDataBaseEntry(sampleEntry, DatabaseHandler.getInstance(getApplicationContext()));
+    }
 
     private void CheckForTempNotification()
     {
@@ -459,7 +505,6 @@ public class MainActivity extends AppCompatActivity {
 
 
 
-    //gets the value of save graph from the config activiyt
     public void onActivityResult(int requestCode, int resultCode, Intent data){
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 1) {
@@ -482,10 +527,7 @@ public class MainActivity extends AppCompatActivity {
                 }
 
             }
-            /*if(resultCode == 1){
-                saveGraphData = data.getBooleanExtra("saveGraphData", true);
 
-            }*/
         }
     }
 

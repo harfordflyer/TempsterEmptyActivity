@@ -20,25 +20,47 @@ import com.jjoe64.graphview.series.LineGraphSeries;
 
 public class GraphActivity extends AppCompatActivity {
 
+    double highTemp = 100;
+    double lowTemp = 100;
+    GraphView graph;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_graph1);
-
+        graph = (GraphView)findViewById(R.id.graph);
         SetDataPoints();
+        SetGraphLayout();
     }
 
     DatabaseHandler handler;
 
-
-
-    public void SetDataPoints() throws NullPointerException {
-        GraphView graph = (GraphView)findViewById(R.id.graph);
+    private void SetGraphLayout()
+    {
         graph.getViewport().setScrollable(true);
         graph.getViewport().setScalable(true);
-        graph.getViewport().setMinY(0);
-        graph.getViewport().setMaxY(350);
+        lowTemp -= lowTemp * .20;
+        if(lowTemp < 0.0)
+        {
+            lowTemp = 0;
+        }
+        highTemp += highTemp * .20;
+        graph.getViewport().setMinY(lowTemp);
+        graph.getViewport().setMaxY(highTemp);
         graph.getViewport().setYAxisBoundsManual(true);
+    }
+
+    private void SetHighLow(double temp1, double temp2)
+    {
+        double highTempValue = temp1 > temp2 ? temp1: temp2;
+        double lowTempValue = temp1 < temp2 ? temp1: temp2;
+        highTemp = highTempValue > highTemp ? highTempValue: highTemp;
+        lowTemp = lowTempValue < lowTemp ? lowTempValue: lowTemp;
+    }
+
+    private void SetDataPoints() throws NullPointerException {
+        //GraphView graph = (GraphView)findViewById(R.id.graph);
+
 
         DatabaseHandler dbHandler = handler.getInstance(getApplicationContext());
         TemperatureEntry entry;
@@ -81,6 +103,7 @@ public class GraphActivity extends AppCompatActivity {
 
             DataPoint pit = new DataPoint(count, Double.parseDouble(e.getPitTemp()));
             DataPoint meat = new DataPoint(count, Double.parseDouble(e.getMeatTemp()));
+            SetHighLow(Double.parseDouble(e.getPitTemp()),Double.parseDouble(e.getMeatTemp()));
             pitDataList.add(pit);
             meatDataList.add(meat);
             count++;

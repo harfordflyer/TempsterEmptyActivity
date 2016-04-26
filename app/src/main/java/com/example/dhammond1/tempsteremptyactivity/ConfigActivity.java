@@ -70,16 +70,8 @@ public class ConfigActivity extends AppCompatActivity {
             Intent intent = new Intent();
             intent.putExtra("pidChanged", true);
             setResult(2, intent);
-           // finish();
+
         }
-
-        //I don't have to do this as the data is saved in the SharedPreferences
-        //But I'm leaving it in for example purposes
-        //intent.putExtra("saveGraphData", b_saveGraphData);
-        //setResult(1, intent);
-
-
-
         finish();
     };
 

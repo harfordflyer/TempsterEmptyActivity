@@ -350,8 +350,6 @@ public class IOIOLooperService extends IOIOService {
 
         super.onStartCommand(intent, flags, startId);
 
-
-
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (intent != null && intent.getAction() != null
                 && intent.getAction().equals("stop")) {
@@ -375,16 +373,14 @@ public class IOIOLooperService extends IOIOService {
             Notification notification = null;
             Notification.Builder builder = new Notification.Builder(getApplicationContext())
                     //.setContentIntent(intent)
-                   // .setSmallIcon(R.drawable.ic_launcher)
+                    // .setSmallIcon(R.drawable.ic_launcher)
                     .setContentTitle("IOIO service");
             notification = builder.build();
         }
         return START_REDELIVER_INTENT;
-    //}
+        //}
 
     };
-
-    @Override
     public IBinder onBind(Intent intent) {
         // TODO: Return the communication channel to the service.
         throw new UnsupportedOperationException("Not yet implemented");

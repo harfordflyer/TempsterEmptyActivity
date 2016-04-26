@@ -8,9 +8,13 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        <uses-library android:name="com.android.future.usb.accessory"
-        android:required="false" />
-        <activity android:name=".MainActivity" android:launchMode="singleTask">
+        <uses-library
+            android:name="com.android.future.usb.accessory"
+            android:required="false" />
+
+        <activity
+            android:name=".MainActivity"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -22,17 +26,23 @@
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
             </intent-filter>
-            <meta-data android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
-                android:resource="@xml/accessory_filter" />
-            <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
-                android:resource="@xml/device_filter" />
 
+            <meta-data
+                android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
+                android:resource="@xml/accessory_filter" />
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/device_filter" />
         </activity>
         <activity android:name=".ConfigActivity" />
         <activity android:name=".GraphActivity" />
 
         <service
-            android:name="IOIOLooperService"
+            android:name=".IOIOLooperService"
+            android:enabled="true"
+            android:exported="true" />
+        <service
+            android:name=".SessionTimerService"
             android:enabled="true"
             android:exported="true"></service>
     </application>
