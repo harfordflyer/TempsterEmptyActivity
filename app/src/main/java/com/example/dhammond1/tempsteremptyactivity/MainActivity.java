@@ -1,6 +1,8 @@
 package com.example.dhammond1.tempsteremptyactivity;
 
+import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -39,10 +41,8 @@ public class MainActivity extends AppCompatActivity {
     public static TextView tv_Timer;
     DatabaseHandler dbHandler;
     ScheduledExecutorService databaseReadTask;
-    Future<?> scheduleFuture;
-    Chronometer chrono;
-    long mLastStopTime = 0;
-    long stoppedMilliseconds = 0;
+
+
     boolean initialStart = true;
     boolean notificationOn = true;
     String setTime = "00:00";
@@ -53,15 +53,10 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences.Editor editor;
     AudioManager audioManager;
     MediaPlayer mediaPlayer;
-
+    AlertDialog.Builder dlgAlert;
     Timer globalnotificationTimer;
-    TimerTask notificationLoop; /*//*= new TimerTask() {
-       /* @Override
-        public void run() {
-            CheckForTempNotification();
-        }
-    };*//*
-*/
+    TimerTask notificationLoop;
+
 
     public static void addDataBaseEntry(TemperatureEntry entry, DatabaseHandler handler)
     {
@@ -76,19 +71,18 @@ public class MainActivity extends AppCompatActivity {
         Log.d("ON RESUME", "onResume called");
         super.onResume();
         boolean start = prefs.getBoolean("initialStart",true);
-        if(!start)
-        {
-            String time = chrono.getText().toString();
-            Log.d("TIMEONRESUME", time);
-
-            chrono.start();
-        }
-        else
+        if(start)
         {
             Log.d("RESUME_INITSTART", setTime);
             editor.putBoolean("initialStart",false);
             editor.apply();
         }
+        /*else
+        {
+            Log.d("RESUME_INITSTART", setTime);
+            editor.putBoolean("initialStart",false);
+            editor.apply();
+        }*/
     }
 
     @Override
@@ -116,7 +110,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         saveGraphData = true;
-        //isServiceRunning = false;
+
         Button config = (Button)findViewById(R.id.configactivity);
         Button graph = (Button)findViewById(R.id.chartactivity);
         Button start = (Button)findViewById(R.id.chronStart);
@@ -127,11 +121,10 @@ public class MainActivity extends AppCompatActivity {
         tv_MeatText = (TextView)findViewById(R.id.tx_tempMeat);
         ed_targetTemp = (EditText)findViewById(R.id.ed_targetPit);
         tv_Timer = (TextView)findViewById(R.id.timerView);
-        chrono = (Chronometer)findViewById(R.id.chronometer);
+
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         mediaPlayer = MediaPlayer.create(getApplicationContext(), RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
-
 
         //do i need to do something here on first start... I will need to set all defaults on first start
         prefs = getApplicationContext().getSharedPreferences(CONFIG_NAME, Context.MODE_PRIVATE);
@@ -151,8 +144,6 @@ public class MainActivity extends AppCompatActivity {
 
                 Intent intent = new Intent(MainActivity.this, ConfigActivity.class);
                 startActivityForResult(intent, 1);
-                SaveChronoTime();
-
 
             }
         });
@@ -162,7 +153,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this, GraphActivity.class);
                 MainActivity.this.startActivity(intent);
-                SaveChronoTime();
+
 
             }
         });
@@ -170,27 +161,7 @@ public class MainActivity extends AppCompatActivity {
         notifyStop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v){
-                String text = null;
-                if(notifyStop.getText().toString().equals("Notification On"))
-                {
-
-                    globalnotificationTimer.cancel();
-                    notificationOn = false;
-                    editor.putBoolean("notificationOn", false);
-                    text = "Notification Off";
-
-                }
-                else
-                {
-                    Timer timer = StartNotificationLoopTimer();
-                    globalnotificationTimer = timer;
-                    notificationOn = true;
-                    editor.putBoolean("notificationOn", true);
-                    timer.schedule(notificationLoop, 0, 60000);
-                    text = "Notification On";
-                }
-                notifyStop.setText(text);
-                editor.apply();
+                SetNotificationState();
             }
         });
 
@@ -201,6 +172,7 @@ public class MainActivity extends AppCompatActivity {
                 String s = ed_targetTemp.getText().toString();
                 editor.putString("targetPitTemp", ed_targetTemp.getText().toString());
                 editor.apply();
+                ResetConfigurationData();
             }
         });
 
@@ -210,57 +182,25 @@ public class MainActivity extends AppCompatActivity {
                 if (!isServiceRunning) {
 
                     StartIOIOServiceLoop(prefs);
-                    startService(new Intent(MainActivity.this, SessionTimerService.class));
+                    Intent intent = new Intent(MainActivity.this, SessionTimerService.class);
+                    intent.putExtra("sessionTimerText", tv_Timer.getText());
+                    startService(intent);
                     isServiceRunning = true;
                     editor.putBoolean("isServiceRunning", true);
                     editor.apply();
 
 
-                } else {
-                    RestoreChronoTime();
                 }
-                if (initialStart) {
-                    chrono.setText(setTime);
-                    Log.d("CHRONOTIME", chrono.getText().toString());
-                }
-                chrono.setBase(SystemClock.elapsedRealtime());
-                chrono.start();
 
-                //fortest
-                /*for(int i = 0; i < 1000; i++) {
-                    int[] vv = new int[2];
-                    Random ran = new Random();
-                    vv[0] = ran.nextInt(20) + 100;
-                    ran = new Random();
-                    vv[1] = ran.nextInt(20) + 120;
-                    FormatAndSaveTemperatureResponse(vv);
-                    for(int ii = 0; ii < 500; ii++);*/
-                //Toast.makeText(getApplicationContext(),"Saving fake data",Toast.LENGTH_LONG);
-                   /* try
-                    {
-                        Thread.sleep(1000L);
-                    }
-                    catch (Exception e)
-                    {
 
-                    }*/
-                //}
             }
         });
 
         stop.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                ShowStopMessageBox();
 
-                chrono.stop();
-                StopIOIOService();
-                stopService(new Intent(MainActivity.this, SessionTimerService.class));
-                mLastStopTime = 0;
-                isServiceRunning = false;
-                editor.putLong("lastStopTime", mLastStopTime);
-                editor.putBoolean("isServiceRunning", isServiceRunning);
-                editor.apply();
-                SaveChronoTime();
             }
 
 
@@ -270,42 +210,97 @@ public class MainActivity extends AppCompatActivity {
         IntentFilter filter = new IntentFilter("results");
         filter.addAction("time");
         LocalBroadcastManager.getInstance(this).registerReceiver(receiver, filter);
+        SetNotificationState();
 
-        globalnotificationTimer = StartNotificationLoopTimer();
-        globalnotificationTimer.schedule(notificationLoop,0, 60000);
     }
 
-
-    protected Timer StartNotificationLoopTimer()
+    private void SetNotificationState()
     {
-        Button notify = (Button)findViewById(R.id.notifyStop);
-        if(prefs.getBoolean("notificationOn",notificationOn))
+        boolean notify = prefs.getBoolean("notificationsOn",true);
+        String text = null;
+
+        if(notify)
         {
-            notify.setText("Notification On");
+            //notifications are turned on - user has elected to turn them off
+            editor.putBoolean("notificationsOn", false);
+            StopNotificationTimer();
+            text = "Notification Off";
         }
         else
         {
-            notify.setText("Notification Off");
+            StartNotificationLoopTimer();
+            editor.putBoolean("notificationsOn", true);
+            text = "Notification On";
         }
+        Button notifyStop = (Button)findViewById(R.id.notifyStop);
+        notifyStop.setText(text);
+        editor.apply();
+    }
 
-        Timer notificationTimer = new Timer();
+    private AlertDialog.Builder ShowStopMessageBox()
+    {
+        dlgAlert  = new AlertDialog.Builder(this);
+        dlgAlert.setMessage("Selecting Ok will end the session.  Do you wish to continue?");
+        dlgAlert.setTitle("Stop Tempster");
+        dlgAlert.setNegativeButton("Cancel",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        //dismiss the dialog
+                    }
+                });
+        dlgAlert.setPositiveButton("Ok",
+                new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int which) {
+                        //dismiss the dialog
+                        StopAllServices();
+
+                    }
+                });
+        dlgAlert.setCancelable(true);
+        dlgAlert.create().show();
+        return dlgAlert;
+    }
+
+
+    protected void StopAllServices()
+    {
+        StopIOIOService();
+        stopService(new Intent(MainActivity.this, SessionTimerService.class));
+
+        tv_Timer.setText(setTime);
+        tv_PitText.setText("N/T");
+        tv_MeatText.setText("N/T");
+        editor.putBoolean("isServiceRunning", false);
+        editor.apply();
+    }
+
+    protected void StartNotificationLoopTimer()
+    {
+        globalnotificationTimer = new Timer();
         notificationLoop = new TimerTask() {
             @Override
             public void run() {
                 CheckForTempNotification();
             }
         };
-        return notificationTimer;
+        globalnotificationTimer.schedule(notificationLoop,0, 60000);
 
     }
 
+
+    protected void StopNotificationTimer()
+    {
+        if(globalnotificationTimer != null) {
+            globalnotificationTimer.cancel();
+        }
+    }
 
     protected void onSavedInstanceState(Bundle outState)
     {
         super.onSaveInstanceState(outState);
         Log.d("ON SAVE", "OnSavedInstanceState");
         savePrefsToSharedPreferences();
-        SaveChronoTime();
+
     }
 
 
@@ -313,70 +308,9 @@ public class MainActivity extends AppCompatActivity {
     {
         super.onRestoreInstanceState(savedInstance);
         Log.d("ON RESTORE", "OnRestoreSavedInstanceState");
-        RestoreChronoTime();
-    }
-
-    private void SaveChronoTime()
-    {
-        stoppedMilliseconds = 0;
-        mLastStopTime = SystemClock.elapsedRealtime();
-        String chronoText = chrono.getText().toString();
-        //get the time shown on the clock
-        String array[] = chronoText.split(":");
-        if (array.length == 2) {
-            stoppedMilliseconds = Integer.parseInt(array[0]) * 60 * 1000
-                    + Integer.parseInt(array[1]) * 1000;
-        } else if (array.length == 3) {
-            stoppedMilliseconds = Integer.parseInt(array[0]) * 60 * 60 * 1000
-                    + Integer.parseInt(array[1]) * 60 * 1000
-                    + Integer.parseInt(array[2]) * 1000;
-        }
-
-        editor.putLong("stoppedMilliseconds", stoppedMilliseconds);
-        Log.d("MILLISECONDS", String.valueOf(stoppedMilliseconds));
-        editor.putLong("lastStopTime", mLastStopTime);
-        Log.d("LASTSTOPTIME", String.valueOf(mLastStopTime));
-        editor.apply();
 
     }
 
-    private void RestoreChronoTime()
-    {
-        stoppedMilliseconds = prefs.getLong("stoppedMilliseconds", 0L);
-        mLastStopTime = prefs.getLong("lastStopTime", 0L);
-        long seconds = SystemClock.elapsedRealtime() -  mLastStopTime;
-        long timetodisplay = seconds + stoppedMilliseconds;
-        Log.d("TIMETODISPLAY", String.valueOf(timetodisplay));
-        Log.d("RESTORE_millis", String.valueOf(stoppedMilliseconds));
-        if(stoppedMilliseconds != 0) {
-            long second = (timetodisplay / 1000) % 60;
-            long minute = (timetodisplay / (1000 * 60)) % 60;
-            long hour = (timetodisplay / (1000 * 60 * 60)) % 24;
-
-            //set time needs to go in shared prefs
-            //along with the state of the running app
-
-            if(hour != 0L)
-            {
-                setTime = String.format("%02d:%02d:%02d", hour, minute, second);
-            }
-            else
-            {
-                setTime = String.format("%02d:%02d", minute, second);
-            }
-            editor.putString("chronoTime", setTime);
-            editor.apply();
-        }
-        else
-        {
-            editor.putString("chronoTime", setTime);
-            editor.apply();
-        }
-        Log.d("SETTINGTIME", setTime);
-        chrono.setText(setTime);
-        chrono.setBase(SystemClock.elapsedRealtime() - timetodisplay);
-
-    }
 
 
 
@@ -422,6 +356,7 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
+            Log.d("ACTION",action);
             switch (action)
             {
                 case "results":
@@ -429,9 +364,17 @@ public class MainActivity extends AppCompatActivity {
                     int[] values = intent.getIntArrayExtra("temps");
                     tv_MeatText.setText(String.valueOf(values[0]));
                     tv_PitText.setText(String.valueOf(values[1]));
-                    if(saveGraphData)
+                    Log.d("BROADCAST_MEAT", String.valueOf(values[0]));
+                    Log.d("BROADCAST_PIT",String.valueOf(values[1]));
+                    if(values[0] < 0 && values[1] < 0)
                     {
-                        FormatAndSaveTemperatureResponse(values);
+                        Toast.makeText(getApplicationContext(),"Make sure probes are plugged in correctly",Toast.LENGTH_LONG).show();
+                    }
+                    else {
+                        if (saveGraphData)
+                        {
+                            FormatAndSaveTemperatureResponse(values);
+                        }
                     }
                     break;
                 }
@@ -439,6 +382,7 @@ public class MainActivity extends AppCompatActivity {
                 {
                     String time = intent.getStringExtra("timeString");
                     tv_Timer.setText(time);
+                    Log.d("BROADCAST_TIME", time);
                     break;
                 }
             }
@@ -518,16 +462,24 @@ public class MainActivity extends AppCompatActivity {
                 case 2:
                 {
                     //stop and start the service with the new PID values
-                    if(isServiceRunning)
-                    {
-                        StopIOIOService();
-                        StartIOIOServiceLoop(prefs);
-                    }
+                    ResetConfigurationData();
+
                     break;
                 }
 
             }
 
+        }
+    }
+
+
+    public void ResetConfigurationData()
+    {
+        //stop and start the service with the new PID values
+        if(isServiceRunning)
+        {
+            StopIOIOService();
+            StartIOIOServiceLoop(prefs);
         }
     }
 
@@ -571,10 +523,6 @@ public class MainActivity extends AppCompatActivity {
         saveBoolean = prefs.getBoolean("notificationOn", notificationOn);
         editor.putBoolean("notificationOn",saveBoolean);
 
-        long restoredLong = prefs.getLong("stoppedMilliseconds", stoppedMilliseconds);
-        editor.putLong("stoppedMilliseconds", restoredLong);
-        restoredLong = prefs.getLong("lastStopTime", mLastStopTime);
-        editor.putLong("lastStopTime", restoredLong);
         editor.apply();
     }
 }

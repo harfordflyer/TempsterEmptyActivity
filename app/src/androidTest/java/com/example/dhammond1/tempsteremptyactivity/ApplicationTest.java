@@ -18,7 +18,22 @@ public class ApplicationTest extends ApplicationTestCase<Application> {
 
     public void testPID() {
 
-        PID pid = new PID();
+        /*PIDSource source = new PIDSource() {
+            @Override
+            public double pidGet() {
+                return 0;
+            }
+        };
+
+        PIDOutput output = new PIDOutput() {
+            @Override
+            public void pidWrite(double output) {
+
+            }
+        }
+
+        PIDOutput output;
+        PID pid = new PID(source,output);
         pid.enable();
         pid.Input = 15;
         pid.Setpoint = 250;
@@ -34,7 +49,14 @@ public class ApplicationTest extends ApplicationTestCase<Application> {
             double out = pid.Output;
             Log.d("PID_OUTPUT", String.valueOf(out));
             pid.Input = pid.Input - 1;
-        }
+        }*/
+    }
+
+    public void TestStringFormat()
+    {
+        SessionTimerService ss = new SessionTimerService();
+        String result = ss.m_TimerClass.formatString(1000);
+
     }
 
 }
